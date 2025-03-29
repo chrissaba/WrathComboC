@@ -37,6 +37,7 @@ namespace WrathCombo.Combos.PvP
             Slither = 39184,
             SnakeScales = 39185,
             Backlash = 39186,
+            WorldSwallower = 39190,
             RattlingCoil = 39189;
 
         internal class Buffs

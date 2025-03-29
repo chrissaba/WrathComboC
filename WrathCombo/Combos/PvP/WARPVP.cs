@@ -7,9 +7,6 @@ namespace WrathCombo.Combos.PvP
     {
         public const byte ClassID = 3;
         public const byte JobID = 21;
-
-        internal class Role : PvPTank;
-
         internal const uint
             HeavySwing = 29074,
             Maim = 29075,

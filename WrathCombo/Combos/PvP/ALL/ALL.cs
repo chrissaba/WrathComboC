@@ -65,7 +65,12 @@ namespace WrathCombo.Combos.PvP
 
         // Lists of Excluded skills 
         internal static readonly List<uint>
-            MovmentSkills = [WARPvP.Onslaught, VPRPvP.Slither, NINPvP.Shukuchi, DNCPvP.EnAvant, MNKPvP.ThunderClap, RDMPvP.CorpsACorps, RDMPvP.Displacement, SGEPvP.Icarus, RPRPvP.HellsIngress, RPRPvP.Regress, BRDPvP.RepellingShot, BLMPvP.AetherialManipulation, DRGPvP.ElusiveJump, GNBPvP.RoughDivide],
+            MovmentSkills = [WARPvP.Onslaught, NINPvP.Shukuchi, DNCPvP.EnAvant, MNKPvP.ThunderClap, RDMPvP.CorpsACorps, RDMPvP.Displacement, SGEPvP.Icarus, RPRPvP.HellsIngress, RPRPvP.Regress, BRDPvP.RepellingShot, BLMPvP.AetherialManipulation, DRGPvP.ElusiveJump, GNBPvP.RoughDivide,
+            GNBPvP.RelentlessRush, SAMPvP.Zantetsuken, RPRPvP.TenebraeLemurum, DRKPvP.Eventide, MCHPvP.MarksmanSpite, RDMPvP.SouthernCross, NINPvP.SeitonTenchu, NINPvP.Huton, NINPvP.Meisui, NINPvP.ThreeMudra, SGEPvP.Pneuma, SGEPvP.Mesotes, DRKPvP.BlackestNight,
+            DRGPvP.HorridRoar, SAMPvP.Soten, SAMPvP.Chiten, MNKPvP.RiddleOfEarth, MNKPvP.EarthsReply, DNCPvP.CuringWaltz, DNCPvP.Contradance, PLDPvP.Phalanx, PLDPvP.HolySheltron, DRKPvP.Impalement, DRKPvP.SaltedEarth, DRKPvP.SaltAndDarkness, DRKPvP.Plunge, VPRPvP.Slither, VPRPvP.Backlash, VPRPvP.WorldSwallower, VPRPvP.SnakeScales, PCTPvP.Smudge, PCTPvP.HolyInWhite, PCTPvP.TemperaCoat, PCTPvP.StarPrism,
+            PLDPvP.HolySpirit, PLDPvP.Guardian, PLDPvP.Intervene, WARPvP.Onslaught, WARPvP.PrimalRend, WARPvP.Bloodwhetting, WARPvP.Blota, WARPvP.PrimalScream, GNBPvP.RelentlessRush, GNBPvP.HeartOfCorundum, GNBPvP.FatedCircle, Recuperate, Sprint, Purify, StandardElixir, Teleport, RDMPvP.Forte, RDMPvP.Displacement, MCHPvP.BishopTurret, MCHPvP.Scattergun,
+            BRDPvP.RepellingShot, SCHPvP.Expedient, SCHPvP.Aqloquilum, SMNPvP.CrimsonCyclone, SMNPvP.RadiantAegis, ASTPvP.Microcosmos, ASTPvP.Macrocosmos, WHMPvP.Cure2, WHMPvP.Cure3, WHMPvP.AfflatusPurgation, WHMPvP.Aquaveil, BLMPvP.Burst, DRGPvP.SkyHigh],
+
             GlobalSkills = [Teleport, Guard, Recuperate, Purify, StandardElixir, Sprint];
 
         internal class GlobalEmergencyHeals : CustomCombo
@@ -76,8 +81,12 @@ namespace WrathCombo.Combos.PvP
             {
                 if ((HasEffect(Buffs.Guard) || JustUsed(Guard)) && IsEnabled(CustomComboPreset.PvP_MashCancel))
                 {
-                    if (actionID == Guard) return Guard;
-                    return All.SavageBlade;
+                    if (MovmentSkills.Contains(actionID))
+                    {
+                        return actionID; //allow for an exemption list
+                    }
+                    else
+                        return OriginalHook(11); //execute the original action
                 }
 
                 if (Execute() &&
@@ -115,22 +124,30 @@ namespace WrathCombo.Combos.PvP
 
             protected override uint Invoke(uint actionID)
             {
-                if ((HasEffect(Buffs.Guard) || JustUsed(Guard)) && IsEnabled(CustomComboPreset.PvP_MashCancel))
+                if (HasEffect(Buffs.Guard) && IsEnabled(CustomComboPreset.PvP_MashCancel))
                 {
-                    if (actionID == Guard)
+                    if (MovmentSkills.Contains(actionID) || JustUsed(Guard))
                     {
-                        if (IsEnabled(CustomComboPreset.PvP_MashCancelRecup) && !JustUsed(Guard, 2f) && LocalPlayer.CurrentMp >= 2500 && LocalPlayer.CurrentHp <= LocalPlayer.MaxHp - 15000) 
-                            return Recuperate;
-                        return Guard;
+                        return actionID; //allow for an exemption list
                     }
-                    return All.SavageBlade;
+
+                    else if (actionID == Guard)
+                    {
+
+                        if (IsEnabled(CustomComboPreset.PvP_MashCancelRecup) && !JustUsed(Guard, 2f) && LocalPlayer.CurrentMp >= 2500 && LocalPlayer.CurrentHp <= LocalPlayer.MaxHp - 15000)
+                            return Recuperate;
+                        else
+                            return Guard;
+                    }
+                    else
+                        return OriginalHook(11);
                 }
 
                 if (Execute() &&
                     InPvP() &&
                     !GlobalSkills.Contains(actionID) &&
                     !MovmentSkills.Contains(actionID))
-                    return OriginalHook(Guard);
+                    return All.SavageBlade;
 
                 return actionID;
             }
@@ -162,8 +179,12 @@ namespace WrathCombo.Combos.PvP
             {
                 if ((HasEffect(Buffs.Guard) || JustUsed(Guard)) && IsEnabled(CustomComboPreset.PvP_MashCancel))
                 {
-                    if (actionID == Guard) return Guard;
-                    return All.SavageBlade;
+                    if (MovmentSkills.Contains(actionID))
+                    {
+                        return actionID; //allow for an exemption list
+                    }
+                    else
+                        return OriginalHook(11); //execute the original action
                 }
 
                 if (Execute() &&

@@ -7,8 +7,6 @@ namespace WrathCombo.Combos.PvP
         public const byte ClassID = 29;
         public const byte JobID = 30;
 
-        internal class Role : PvPMelee;
-
         internal const uint
             SpinningEdge = 29500,
             GustSlash = 29501,
@@ -49,7 +47,7 @@ namespace WrathCombo.Combos.PvP
                 SealedHuton = 3196,
                 SealedDoton = 3197,
                 SeakedForkedRaiju = 3195,
-                SealedMeisui = 3198,                
+                SealedMeisui = 3198,
                 Dokumori = 4303;
         }
 
@@ -92,7 +90,7 @@ namespace WrathCombo.Combos.PvP
 
                         // Seiton Tenchu priority for targets below 50% HP
                         if (IsEnabled(CustomComboPreset.NINPvP_ST_SeitonTenchu) && GetTargetHPPercent() < GetOptionValue(Config.NINPVP_SeitonTenchu) &&
-                            (IsLB1Ready || HasEffect(Buffs.SeitonUnsealed)))  // Limit Break or Unsealed buff
+                            (IsLB1Ready || HasEffect(Buffs.SeitonUnsealed)) && EnemyHealthMaxHp() < 100000 && EnemyHealthCurrentHp() > 1)  // Limit Break or Unsealed buff
                             return OriginalHook(SeitonTenchu);
 
                         // Zesho Meppo
@@ -114,7 +112,7 @@ namespace WrathCombo.Combos.PvP
                             {
                                 if (!IsEnabled(CustomComboPreset.NINPvP_ST_ThreeMudraPool) || HasEffect(Buffs.Bunshin))
                                     return OriginalHook(ThreeMudra);
-                            }  
+                            }
 
                         }
 
@@ -129,8 +127,11 @@ namespace WrathCombo.Combos.PvP
                                 if (!HasEffect(Debuffs.SealedHyoshoRanryu))
                                     return OriginalHook(HyoshoRanryu);
 
-                                if (!HasEffect(Debuffs.SeakedForkedRaiju) && bunshinStacks > 0)
+                                if (!HasEffect(Debuffs.SeakedForkedRaiju) && bunshinStacks > 0 && inMeleeRange)
                                     return OriginalHook(ForkedRaiju);
+
+                                if (!HasEffect(Debuffs.SealedGokaMekkyaku))
+                                    return OriginalHook(GokaMekkyaku);
 
                                 if (!HasEffect(Debuffs.SealedHuton))
                                     return OriginalHook(Huton);
@@ -203,12 +204,10 @@ namespace WrathCombo.Combos.PvP
                             {
                                 if (IsEnabled(CustomComboPreset.NINPvP_AoE_Meisui) && inMeisuiRange && !meisuiLocked)
                                     return OriginalHook(Meisui);
-
-                                if (!dotonLocked)
-                                    return OriginalHook(Doton);
-
                                 if (!gokaLocked)
                                     return OriginalHook(GokaMekkyaku);
+
+
                             }
                             else return actionID;  // if automatic is not enabled and in mudra mode, ensures fuma shuriken is the option so mudras can be properly chosen
                         }
@@ -226,7 +225,7 @@ namespace WrathCombo.Combos.PvP
 
                             return OriginalHook(SpinningEdge);
                         }
-                    }    
+                    }
                 }
 
                 return actionID;

@@ -16,6 +16,7 @@ namespace WrathCombo.Combos.PvP
             Kardia = 29264,
             EukrasianDosis = 29257,
             Toxicon2 = 29263,
+            Mesotes = 29266,
             Psyche = 41658;
 
         internal class Debuffs

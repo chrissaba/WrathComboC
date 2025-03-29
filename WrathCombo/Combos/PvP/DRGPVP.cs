@@ -25,6 +25,7 @@ namespace WrathCombo.Combos.PvP
             Purify = 29056,
             Guard = 29054,
             Drakesbane = 41449,
+            SkyHigh = 29497,
             Starcross = 41450;
 
 
