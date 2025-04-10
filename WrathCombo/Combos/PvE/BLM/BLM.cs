@@ -38,7 +38,7 @@ internal partial class BLM : CasterJob
 
                 if (Gauge.InUmbralIce)
                 {
-                    if (ActionReady(Role.Swiftcast) && JustUsed(Transpose))
+                    if (ActionReady(Role.Swiftcast) && JustUsed(Transpose) && !HasEffect(Buffs.Triplecast))
                         return Role.Swiftcast;
 
                     if (JustUsed(Paradox) || !LevelChecked(Paradox) && CurMp is MP.MaxMP)
@@ -57,7 +57,7 @@ internal partial class BLM : CasterJob
 
             if (IsMoving() && InCombat())
             {
-                if (HasPolyglotStacks())
+                if (HasPolyglotStacks() && !HasEffect(Buffs.Triplecast))
                     return LevelChecked(Xenoglossy)
                         ? Xenoglossy
                         : Foul;
@@ -185,7 +185,7 @@ internal partial class BLM : CasterJob
                 if (Gauge.InUmbralIce)
                 {
                     if (IsEnabled(CustomComboPreset.BLM_ST_Swiftcast) &&
-                        ActionReady(Role.Swiftcast) && JustUsed(Transpose))
+                        ActionReady(Role.Swiftcast) && JustUsed(Transpose) && !HasEffect(Buffs.Triplecast))
                         return Role.Swiftcast;
 
                     if (JustUsed(Paradox) || !LevelChecked(Paradox) && CurMp is MP.MaxMP)
@@ -222,7 +222,7 @@ internal partial class BLM : CasterJob
                     return Role.Swiftcast;
 
                 if (Config.BLM_ST_MovementOption[3] &&
-                    HasPolyglotStacks())
+                    HasPolyglotStacks() && !HasEffect(Buffs.Triplecast))
                     return LevelChecked(Xenoglossy)
                         ? Xenoglossy
                         : Foul;

@@ -153,7 +153,7 @@ namespace WrathCombo.CustomComboNS
 
             if (CurrentState == OpenerState.OpenerNotReady)
             {
-                if (HasCooldowns())
+                if (HasCooldowns() && !InCombat())
                 {
                     CurrentState = OpenerState.OpenerReady;
                     OpenerStep = 1;
