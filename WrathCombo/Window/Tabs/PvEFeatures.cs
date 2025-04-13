@@ -43,7 +43,7 @@ namespace WrathCombo.Window.Tabs
                         ImGuiEx.TextUnderlined("Select a job from below to enable and configure features for it.");
                     });
 
-                    ColCount = (int)(ImGui.GetContentRegionAvail().X / 200f.Scale());
+                    ColCount = Math.Max(1, (int)(ImGui.GetContentRegionAvail().X / 200f.Scale()));
 
                     using (var tab = ImRaii.Table("PvETable", ColCount))
                     {

@@ -88,7 +88,7 @@ namespace WrathCombo.Window
         {
             SizeConstraints = new()
             {
-                MinimumSize = new Vector2(700, 10).Scale()
+                MinimumSize = new Vector2(700, 100).Scale()
             };
         }
 
