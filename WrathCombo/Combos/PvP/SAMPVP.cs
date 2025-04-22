@@ -169,7 +169,7 @@ namespace WrathCombo.Combos.PvP
                                 return OriginalHook(MeikyoShisui);
 
                             // Mineuchi
-                            if (IsEnabled(CustomComboPreset.SAMPvP_Mineuchi) && IsOffCooldown(Mineuchi) && !hasKaiten && (IsOffCooldown(OgiNamikiri) || HasEffect(Buffs.MeikyoShisui)))
+                            if (IsEnabled(CustomComboPreset.SAMPvP_Mineuchi) && IsOffCooldown(Mineuchi) && !hasKaiten && (IsOffCooldown(OgiNamikiri) || HasStatusEffect(Buffs.MeikyoShisui)))
                                 return OriginalHook(Mineuchi);
                         }
                     }
