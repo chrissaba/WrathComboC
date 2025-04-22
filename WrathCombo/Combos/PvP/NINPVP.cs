@@ -151,8 +151,7 @@ namespace WrathCombo.Combos.PvP
 
                         // Seiton Tenchu priority for targets below 50% HP
                         if (IsEnabled(CustomComboPreset.NINPvP_ST_SeitonTenchu) && GetTargetHPPercent() < GetOptionValue(Config.NINPVP_SeitonTenchu) &&
-                            (IsLB1Ready || HasStatusEffect(Buffs.SeitonUnsealed)))  // Limit Break or Unsealed buff
-                            (IsLB1Ready || HasEffect(Buffs.SeitonUnsealed)) && EnemyHealthMaxHp() < 100000 && EnemyHealthCurrentHp() > 1)  // Limit Break or Unsealed buff
+                            (IsLB1Ready || HasStatusEffect(Buffs.SeitonUnsealed)) && EnemyHealthMaxHp() < 100000 && EnemyHealthCurrentHp() > 1)  // Limit Break or Unsealed buff
                             return OriginalHook(SeitonTenchu);
 
                         //Smite
@@ -194,7 +193,7 @@ namespace WrathCombo.Combos.PvP
                                 if (!HasStatusEffect(Debuffs.SealedHyoshoRanryu))
                                     return OriginalHook(HyoshoRanryu);
 
-                                if (!HasStatusEffect(Debuffs.SeakedForkedRaiju) && bunshinStacks > 0)
+                                if (!HasStatusEffect(Debuffs.SeakedForkedRaiju) && bunshinStacks > 0 && inMeleeRange)
                                     return OriginalHook(ForkedRaiju);
 
                                 if (!HasStatusEffect(Debuffs.SealedHuton))
