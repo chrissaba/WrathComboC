@@ -70,7 +70,7 @@ namespace WrathCombo.Combos.PvP
             GNBPvP.RelentlessRush, SAMPvP.Zantetsuken, RPRPvP.TenebraeLemurum, DRKPvP.Eventide, MCHPvP.MarksmanSpite, RDMPvP.SouthernCross, NINPvP.SeitonTenchu, NINPvP.Huton, NINPvP.Meisui, NINPvP.ThreeMudra, SGEPvP.Pneuma, SGEPvP.Mesotes, DRKPvP.BlackestNight,
             DRGPvP.HorridRoar, SAMPvP.Soten, SAMPvP.Chiten, MNKPvP.RiddleOfEarth, MNKPvP.EarthsReply, DNCPvP.CuringWaltz, DNCPvP.Contradance, PLDPvP.Phalanx, PLDPvP.HolySheltron, DRKPvP.Impalement, DRKPvP.SaltedEarth, DRKPvP.SaltAndDarkness, DRKPvP.Plunge, VPRPvP.Slither, VPRPvP.Backlash, VPRPvP.WorldSwallower, VPRPvP.SnakeScales, PCTPvP.Smudge, PCTPvP.HolyInWhite, PCTPvP.TemperaCoat, PCTPvP.StarPrism,
             PLDPvP.HolySpirit, PLDPvP.Guardian, PLDPvP.Intervene, WARPvP.Onslaught, WARPvP.PrimalRend, WARPvP.Bloodwhetting, WARPvP.Blota, WARPvP.PrimalScream, GNBPvP.RelentlessRush, GNBPvP.HeartOfCorundum, GNBPvP.FatedCircle, Recuperate, Sprint, Purify, StandardElixir, Teleport, RDMPvP.Forte, RDMPvP.Displacement, MCHPvP.BishopTurret, MCHPvP.Scattergun,
-            BRDPvP.RepellingShot, SCHPvP.Expedient, SCHPvP.Aqloquilum, SMNPvP.CrimsonCyclone, SMNPvP.RadiantAegis, ASTPvP.Microcosmos, ASTPvP.Macrocosmos, WHMPvP.Cure2, WHMPvP.Cure3, WHMPvP.AfflatusPurgation, WHMPvP.Aquaveil, BLMPvP.Burst, DRGPvP.SkyHigh],
+            BRDPvP.RepellingShot, SCHPvP.Expedient, SCHPvP.Adloquilum, SMNPvP.CrimsonCyclone, SMNPvP.RadiantAegis, ASTPvP.Microcosmos, ASTPvP.Macrocosmos, WHMPvP.Cure2, WHMPvP.Cure3, WHMPvP.AfflatusPurgation, WHMPvP.Aquaveil, BLMPvP.Burst, DRGPvP.SkyHigh],
 
             GlobalSkills = [Teleport, Guard, Recuperate, Purify, StandardElixir, Sprint];
 
