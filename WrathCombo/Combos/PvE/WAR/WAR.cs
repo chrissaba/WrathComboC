@@ -1,12 +1,12 @@
 using Dalamud.Game.ClientState.JobGauge.Types;
-using Dalamud.Game.ClientState.Statuses;
+using ECommons.DalamudServices;
 using System.Linq;
 using WrathCombo.CustomComboNS;
 using WrathCombo.Data;
 
 namespace WrathCombo.Combos.PvE;
 
-internal partial class WAR : TankJob
+internal partial class WAR : Tank
 {
     #region Simple Mode - Single Target
     internal class WAR_ST_Simple : CustomCombo
@@ -94,8 +94,8 @@ internal partial class WAR : TankJob
             {
                 if (InCombat() && //in combat
                     ActionReady(Infuriate) && //Infuriate is ready
-                    !HasEffect(Buffs.NascentChaos) && //does not have Nascent Chaos
-                    !HasEffect(Buffs.InnerReleaseStacks) && //does not have Inner Release stacks
+                    !HasStatusEffect(Buffs.NascentChaos) && //does not have Nascent Chaos
+                    !HasStatusEffect(Buffs.InnerReleaseStacks) && //does not have Inner Release stacks
                     gauge <= 40) //gauge is less than or equal to 40
                     return Infuriate;
 
@@ -106,7 +106,7 @@ internal partial class WAR : TankJob
                     return OriginalHook(Berserk);
             }
 
-            if (HasEffect(Buffs.SurgingTempest) && //has Surging Tempest
+            if (HasStatusEffect(Buffs.SurgingTempest) && //has Surging Tempest
                 InCombat()) //in combat
             {
                 if (CanWeave()) //in weave window
@@ -118,7 +118,7 @@ internal partial class WAR : TankJob
                         return Upheaval;
 
                     if (LevelChecked(PrimalWrath) && //Primal Wrath is available
-                        HasEffect(Buffs.Wrathful)) //has Wrathful
+                        HasStatusEffect(Buffs.Wrathful)) //has Wrathful
                         return PrimalWrath;
 
                     if (LevelChecked(Onslaught) && //Onslaught is available
@@ -131,22 +131,22 @@ internal partial class WAR : TankJob
                     }
                 }
 
-                if (HasEffect(Buffs.PrimalRendReady) && //has Primal Rend ready
+                if (HasStatusEffect(Buffs.PrimalRendReady) && //has Primal Rend ready
                     !JustUsed(InnerRelease) && //has not just used IR
                     !IsMoving() && //not moving
                     GetTargetDistance() <= 1) //within 1y of target
                     return PrimalRend;
 
-                if (HasEffect(Buffs.PrimalRuinationReady) && //has Primal Ruination ready
+                if (HasStatusEffect(Buffs.PrimalRuinationReady) && //has Primal Ruination ready
                     LevelChecked(PrimalRuination)) //Primal Ruination is available
                     return PrimalRuination;
 
                 if (LevelChecked(InnerBeast)) //Inner Beast is available
                 {
-                    if (HasEffect(Buffs.InnerReleaseStacks) || (HasEffect(Buffs.NascentChaos) && LevelChecked(InnerChaos))) //has IR stacks or Nascent Chaos and Inner Chaos
+                    if (HasStatusEffect(Buffs.InnerReleaseStacks) || (HasStatusEffect(Buffs.NascentChaos) && LevelChecked(InnerChaos))) //has IR stacks or Nascent Chaos and Inner Chaos
                         return OriginalHook(InnerBeast);
 
-                    if (HasEffect(Buffs.NascentChaos) && //has Nascent Chaos
+                    if (HasStatusEffect(Buffs.NascentChaos) && //has Nascent Chaos
                         !LevelChecked(InnerChaos) && //does not have Inner Chaos
                         gauge >= 50) //gauge is greater than or equal to 50
                         return OriginalHook(Decimate);
@@ -157,7 +157,7 @@ internal partial class WAR : TankJob
             {
                 if (LevelChecked(InnerBeast) && //Inner Beast is available
                     gauge >= 90 && //gauge is greater than or equal to 90
-                    (!LevelChecked(StormsEye) || HasEffectAny(Buffs.SurgingTempest))) //does not have Storm's Eye or has Surging Tempest
+                    (!LevelChecked(StormsEye) || HasStatusEffect(Buffs.SurgingTempest, anyOwner: true))) //does not have Storm's Eye or has Surging Tempest
                     return OriginalHook(InnerBeast);
 
                 if (LevelChecked(Maim) && //Maim is available
@@ -168,7 +168,7 @@ internal partial class WAR : TankJob
                     ComboAction == Maim) //last combo move was Maim
                 {
                     if (LevelChecked(StormsEye) && //Storm's Eye is available
-                        GetBuffRemainingTime(Buffs.SurgingTempest) <= 29) //Surging Tempest is about to expire
+                        GetStatusEffectRemainingTime(Buffs.SurgingTempest) <= 29) //Surging Tempest is about to expire
                         return StormsEye;
                     return StormsPath;
                 }
@@ -288,20 +288,17 @@ internal partial class WAR : TankJob
                 HasBattleTarget()) //has a target
                 return Tomahawk;
 
-            if (IsEnabled(CustomComboPreset.WAR_ST_Advanced_BalanceOpener) &&
-                ContentCheck.IsInConfiguredContent(Config.WAR_BalanceOpener_Content, ContentCheck.ListSet.BossOnly))
-            {
-                if (Opener().FullOpener(ref actionID))
-                    return actionID;
-            }
+            if (IsEnabled(CustomComboPreset.WAR_ST_Advanced_BalanceOpener) && Opener().FullOpener(ref actionID))
+                return actionID;
+
 
             if (CanWeave()) //in weave window
             {
                 if (IsEnabled(CustomComboPreset.WAR_ST_Advanced_Infuriate) && //Infuriate option is enabled
                     InCombat() && //in combat
                     ActionReady(Infuriate) && //Infuriate is ready
-                    !HasEffect(Buffs.NascentChaos) && //does not have Nascent Chaos
-                    !HasEffect(Buffs.InnerReleaseStacks) && //does not have Inner Release stacks
+                    !HasStatusEffect(Buffs.NascentChaos) && //does not have Nascent Chaos
+                    !HasStatusEffect(Buffs.InnerReleaseStacks) && //does not have Inner Release stacks
                     gauge <= Config.WAR_InfuriateSTGauge && //gauge is less than or equal to selected threshold
                     GetRemainingCharges(Infuriate) > Config.WAR_KeepInfuriateCharges) //has more than selected charges
                     return Infuriate;
@@ -314,7 +311,7 @@ internal partial class WAR : TankJob
             }
 
             if (InCombat() && //in combat
-                HasEffect(Buffs.SurgingTempest)) //has Surging Tempest
+                HasStatusEffect(Buffs.SurgingTempest)) //has Surging Tempest
             {
                 if (CanWeave()) //in weave window
                 {
@@ -328,7 +325,7 @@ internal partial class WAR : TankJob
 
                     if (IsEnabled(CustomComboPreset.WAR_ST_Advanced_PrimalWrath) && //Primal Wrath option is enabled
                         LevelChecked(PrimalWrath) && //Primal Wrath is available
-                        HasEffect(Buffs.Wrathful)) //has Wrathful
+                        HasStatusEffect(Buffs.Wrathful)) //has Wrathful
                         return PrimalWrath;
 
                     if (IsEnabled(CustomComboPreset.WAR_ST_Advanced_Onslaught) && //Onslaught option is enabled
@@ -344,13 +341,13 @@ internal partial class WAR : TankJob
                 }
 
                 if (IsEnabled(CustomComboPreset.WAR_ST_Advanced_PrimalRend) && //Primal Rend option is enabled
-                    HasEffect(Buffs.PrimalRendReady) && //has Primal Rend ready
+                    HasStatusEffect(Buffs.PrimalRendReady) && //has Primal Rend ready
                     !JustUsed(InnerRelease)) //has not just used IR
                 {
                     if (IsEnabled(CustomComboPreset.WAR_ST_Advanced_PrimalRend_Late) && //Primal Rend late option is enabled
-                        GetBuffStacks(Buffs.InnerReleaseStacks) is 0 && //does not have IR stacks
-                        GetBuffStacks(Buffs.BurgeoningFury) is 0 && //does not have Burgeoning Fury stacks
-                        !HasEffect(Buffs.Wrathful)) //does not have Wrathful
+                        GetStatusEffectStacks(Buffs.InnerReleaseStacks) is 0 && //does not have IR stacks
+                        GetStatusEffectStacks(Buffs.BurgeoningFury) is 0 && //does not have Burgeoning Fury stacks
+                        !HasStatusEffect(Buffs.Wrathful)) //does not have Wrathful
                         return PrimalRend;
 
                     if (IsNotEnabled(CustomComboPreset.WAR_ST_Advanced_PrimalRend_Late) && //Primal Rend late option is disabled
@@ -360,16 +357,16 @@ internal partial class WAR : TankJob
 
                 if (IsEnabled(CustomComboPreset.WAR_ST_Advanced_PrimalRuination) && //Primal Ruination option is enabled
                     LevelChecked(PrimalRuination) && //Primal Ruination is available
-                    HasEffect(Buffs.PrimalRuinationReady)) //has Primal Ruination ready
+                    HasStatusEffect(Buffs.PrimalRuinationReady)) //has Primal Ruination ready
                     return PrimalRuination;
 
                 if (IsEnabled(CustomComboPreset.WAR_ST_Advanced_FellCleave) && //Fell Cleave option is enabled
                     LevelChecked(InnerBeast)) //Inner Beast is available
                 {
-                    if (HasEffect(Buffs.InnerReleaseStacks) || (HasEffect(Buffs.NascentChaos) && LevelChecked(InnerChaos))) //has IR stacks or Nascent Chaos and Inner Chaos
+                    if (HasStatusEffect(Buffs.InnerReleaseStacks) || (HasStatusEffect(Buffs.NascentChaos) && LevelChecked(InnerChaos))) //has IR stacks or Nascent Chaos and Inner Chaos
                         return OriginalHook(InnerBeast);
 
-                    if (HasEffect(Buffs.NascentChaos) && //has Nascent Chaos
+                    if (HasStatusEffect(Buffs.NascentChaos) && //has Nascent Chaos
                         !LevelChecked(InnerChaos) && //Inner Chaos is not available
                         gauge >= 50) //gauge is greater than or equal to 50
                         return OriginalHook(Decimate);
@@ -380,7 +377,7 @@ internal partial class WAR : TankJob
             {
                 if (IsEnabled(CustomComboPreset.WAR_ST_Advanced_FellCleave) && //Fell Cleave option is enabled
                     LevelChecked(InnerBeast) && //Inner Beast is available
-                    (!LevelChecked(StormsEye) || HasEffectAny(Buffs.SurgingTempest)) && //does not have Storm's Eye or has Surging Tempest
+                    (!LevelChecked(StormsEye) || HasStatusEffect(Buffs.SurgingTempest, anyOwner: true)) && //does not have Storm's Eye or has Surging Tempest
                     gauge >= Config.WAR_FellCleaveGauge) //gauge is greater than or equal to selected threshold
                     return OriginalHook(InnerBeast);
 
@@ -393,7 +390,7 @@ internal partial class WAR : TankJob
                     ComboAction == Maim) //last combo move was Maim
                 {
                     if (LevelChecked(StormsEye) && //Storm's Eye is available
-                        GetBuffRemainingTime(Buffs.SurgingTempest) <= Config.WAR_SurgingRefreshRange) //Surging Tempest less than or equal to selected threshold
+                        GetStatusEffectRemainingTime(Buffs.SurgingTempest) <= Config.WAR_SurgingRefreshRange) //Surging Tempest less than or equal to selected threshold
                         return StormsEye; //Storm's Eye
                     return StormsPath; //Storm's Path instead if conditions are not met
                 }
@@ -471,7 +468,7 @@ internal partial class WAR : TankJob
                             return Role.Rampart;
 
                         //Reprisal
-                        if (Role.CanReprisal(90, checkTargetForDebuff:false))
+                        if (Role.CanReprisal(90, checkTargetForDebuff: false))
                             return Role.Reprisal;
                     }
 
@@ -497,8 +494,8 @@ internal partial class WAR : TankJob
             {
                 if (InCombat() && //in combat
                     ActionReady(Infuriate) && //Infuriate is ready
-                    !HasEffect(Buffs.NascentChaos) && //does not have Nascent Chaos
-                    !HasEffect(Buffs.InnerReleaseStacks) && //does not have Inner Release stacks
+                    !HasStatusEffect(Buffs.NascentChaos) && //does not have Nascent Chaos
+                    !HasStatusEffect(Buffs.InnerReleaseStacks) && //does not have Inner Release stacks
                     gauge <= 40) //gauge is less than or equal to 40
                     return Infuriate;
 
@@ -509,7 +506,7 @@ internal partial class WAR : TankJob
             }
 
             if (InCombat() && //in combat
-                HasEffect(Buffs.SurgingTempest)) //has Surging Tempest
+                HasStatusEffect(Buffs.SurgingTempest)) //has Surging Tempest
             {
                 if (CanWeave()) //in weave window
                 {
@@ -520,20 +517,20 @@ internal partial class WAR : TankJob
                         return Orogeny;
 
                     if (LevelChecked(PrimalWrath) && //Primal Wrath is available
-                        HasEffect(Buffs.Wrathful)) //has Wrathful
+                        HasStatusEffect(Buffs.Wrathful)) //has Wrathful
                         return PrimalWrath;
                 }
 
                 if (LevelChecked(PrimalRend) && //Primal Rend is available
-                    HasEffect(Buffs.PrimalRendReady)) //has Primal Rend ready
+                    HasStatusEffect(Buffs.PrimalRendReady)) //has Primal Rend ready
                     return PrimalRend;
 
                 if (LevelChecked(PrimalRuination) && //Primal Ruination is available
-                    HasEffect(Buffs.PrimalRuinationReady)) //has Primal Ruination ready
+                    HasStatusEffect(Buffs.PrimalRuinationReady)) //has Primal Ruination ready
                     return PrimalRuination;
 
                 if (LevelChecked(SteelCyclone) && //Steel Cyclone is available
-                    (gauge >= 90 || HasEffect(Buffs.InnerReleaseStacks) || HasEffect(Buffs.NascentChaos))) //gauge is greater than or equal to 90 or has IR stacks or Nascent Chaos
+                    (gauge >= 90 || HasStatusEffect(Buffs.InnerReleaseStacks) || HasStatusEffect(Buffs.NascentChaos))) //gauge is greater than or equal to 90 or has IR stacks or Nascent Chaos
                     return OriginalHook(SteelCyclone);
             }
 
@@ -624,7 +621,7 @@ internal partial class WAR : TankJob
 
                     //Reprisal
                     if (IsEnabled(CustomComboPreset.WAR_AoE_Advanced_Reprisal) && //Reprisal option is enabled
-                        Role.CanReprisal(Config.WAR_AoE_Reprisal_Health, checkTargetForDebuff:false) && //Player's health is below selected threshold
+                        Role.CanReprisal(Config.WAR_AoE_Reprisal_Health, checkTargetForDebuff: false) && //Player's health is below selected threshold
                         (Config.WAR_AoE_Reprisal_SubOption == 0 || //Reprisal is enabled for all targets
                          (TargetIsBoss() && Config.WAR_AoE_Reprisal_SubOption == 1))) //Reprisal is enabled for bosses only
                         return Role.Reprisal;
@@ -666,8 +663,8 @@ internal partial class WAR : TankJob
                 if (IsEnabled(CustomComboPreset.WAR_AoE_Advanced_Infuriate) && //Infuriate option is enabled
                     InCombat() && //in combat
                     ActionReady(Infuriate) && //Infuriate is ready
-                    !HasEffect(Buffs.NascentChaos) && //does not have Nascent Chaos
-                    !HasEffect(Buffs.InnerReleaseStacks) && //does not have Inner Release stacks
+                    !HasStatusEffect(Buffs.NascentChaos) && //does not have Nascent Chaos
+                    !HasStatusEffect(Buffs.InnerReleaseStacks) && //does not have Inner Release stacks
                     gauge <= Config.WAR_InfuriateSTGauge) //gauge is less than or equal to selected threshold
                     return Infuriate;
 
@@ -679,7 +676,7 @@ internal partial class WAR : TankJob
             }
 
             if (InCombat() && //in combat
-                HasEffect(Buffs.SurgingTempest)) //has Surging Tempest
+                HasStatusEffect(Buffs.SurgingTempest)) //has Surging Tempest
             {
                 if (CanWeave()) //in weave window
                 {
@@ -693,23 +690,23 @@ internal partial class WAR : TankJob
 
                     if (IsEnabled(CustomComboPreset.WAR_AoE_Advanced_PrimalWrath) && //Primal Wrath option is enabled
                         LevelChecked(PrimalWrath) && //Primal Wrath is available
-                        HasEffect(Buffs.Wrathful)) //has Wrathful
+                        HasStatusEffect(Buffs.Wrathful)) //has Wrathful
                         return PrimalWrath;
                 }
 
                 if (IsEnabled(CustomComboPreset.WAR_AoE_Advanced_PrimalRend) && //Primal Rend option is enabled
                     LevelChecked(PrimalRend) && //Primal Rend is available
-                    HasEffect(Buffs.PrimalRendReady)) //has Primal Rend ready
+                    HasStatusEffect(Buffs.PrimalRendReady)) //has Primal Rend ready
                     return PrimalRend;
 
                 if (IsEnabled(CustomComboPreset.WAR_AoE_Advanced_PrimalRuination) && //Primal Ruination option is enabled
-                    HasEffect(Buffs.PrimalRuinationReady) && //has Primal Ruination ready
+                    HasStatusEffect(Buffs.PrimalRuinationReady) && //has Primal Ruination ready
                     LevelChecked(PrimalRuination)) //Primal Ruination is available
                     return PrimalRuination;
 
                 if (IsEnabled(CustomComboPreset.WAR_AoE_Advanced_Decimate) && //Decimate option is enabled
                     LevelChecked(SteelCyclone) && //Steel Cyclone is available
-                    (gauge >= Config.WAR_DecimateGauge || HasEffect(Buffs.InnerReleaseStacks) || HasEffect(Buffs.NascentChaos))) //gauge is greater than or equal to selected threshold or has IR stacks or Nascent Chaos
+                    (gauge >= Config.WAR_DecimateGauge || HasStatusEffect(Buffs.InnerReleaseStacks) || HasStatusEffect(Buffs.NascentChaos))) //gauge is greater than or equal to selected threshold or has IR stacks or Nascent Chaos
                     return OriginalHook(SteelCyclone);
             }
 
@@ -735,7 +732,7 @@ internal partial class WAR : TankJob
             if (actionID != StormsPath)
                 return actionID;
 
-            if (GetBuffRemainingTime(Buffs.SurgingTempest) <= Config.WAR_EyePath_Refresh) //Surging Tempest less than or equal to selected threshold
+            if (GetStatusEffectRemainingTime(Buffs.SurgingTempest) <= Config.WAR_EyePath_Refresh) //Surging Tempest less than or equal to selected threshold
                 return StormsEye;
 
             return actionID;
@@ -774,17 +771,17 @@ internal partial class WAR : TankJob
     {
         protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.WAR_PrimalCombo_InnerRelease;
 
-            protected override uint Invoke(uint actionID)
-            {
-                if (actionID is not (Berserk or InnerRelease))
-                    return OriginalHook(actionID);
+        protected override uint Invoke(uint actionID)
+        {
+            if (actionID is not (Berserk or InnerRelease))
+                return OriginalHook(actionID);
 
             if (LevelChecked(PrimalRend) && //Primal Rend is available
-                HasEffect(Buffs.PrimalRendReady)) //Primal Rend is ready
+                HasStatusEffect(Buffs.PrimalRendReady)) //Primal Rend is ready
                 return PrimalRend;
 
             if (LevelChecked(PrimalRuination) && //Primal Ruination is available
-                HasEffect(Buffs.PrimalRuinationReady)) //Primal Ruination is ready
+                HasStatusEffect(Buffs.PrimalRuinationReady)) //Primal Ruination is ready
                 return PrimalRuination;
 
             return OriginalHook(actionID);
@@ -803,8 +800,8 @@ internal partial class WAR : TankJob
                 return actionID;
 
             WARGauge gauge = GetJobGauge<WARGauge>();
-            bool hasNascent = HasEffect(Buffs.NascentChaos);
-            bool hasInnerRelease = HasEffect(Buffs.InnerReleaseStacks);
+            bool hasNascent = HasStatusEffect(Buffs.NascentChaos);
+            bool hasInnerRelease = HasStatusEffect(Buffs.InnerReleaseStacks);
 
             if (InCombat() && //is in combat
                 gauge.BeastGauge <= Config.WAR_InfuriateRange && //Beast Gauge is below selected threshold
@@ -881,7 +878,7 @@ internal partial class WAR : TankJob
                 return Equilibrium;
 
             if (IsEnabled(CustomComboPreset.WAR_ThrillEquilibrium_BuffOnly) &&
-                HasEffect(Buffs.ThrillOfBattle))
+                HasStatusEffect(Buffs.ThrillOfBattle))
                 return Equilibrium;
 
             return ThrillOfBattle;

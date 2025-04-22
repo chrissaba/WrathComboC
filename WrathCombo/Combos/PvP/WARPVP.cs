@@ -85,14 +85,14 @@ namespace WrathCombo.Combos.PvP
                         }
 
                         // Primal Wrath if in melee range and Wrathfull effect is active
-                        if (IsEnabled(CustomComboPreset.WARPvP_BurstMode_PrimalScream) && InMeleeRange() && canWeave && HasEffect(Buffs.Wrathfull))
+                        if (IsEnabled(CustomComboPreset.WARPvP_BurstMode_PrimalScream) && InMeleeRange() && canWeave && HasStatusEffect(Buffs.Wrathfull))
                             return OriginalHook(PrimalScream);
 
                         // Blota and PrimalRend conditions based on range and cooldowns
                         if (!InMeleeRange())
                         {
                             // Blota with specific conditions and burst mode enabled
-                            if (IsOffCooldown(Blota) && !TargetHasEffectAny(PvPCommon.Debuffs.Stun) && IsEnabled(CustomComboPreset.WARPvP_BurstMode_Blota))
+                            if (IsOffCooldown(Blota) && !HasStatusEffect(PvPCommon.Debuffs.Stun, CurrentTarget, true) && IsEnabled(CustomComboPreset.WARPvP_BurstMode_Blota))
                             {
                                 if (Config.WARPVP_BlotaTiming == 0 && IsOffCooldown(PrimalRend))
                                     return OriginalHook(Blota);
@@ -103,7 +103,7 @@ namespace WrathCombo.Combos.PvP
                             // PrimalRend if ready or BurstMode enabled
                             if (IsEnabled(CustomComboPreset.WARPvP_BurstMode_PrimalRend))
                             {
-                                if ((IsOffCooldown(PrimalRend) || HasEffect(Buffs.PrimalRuinationReady)))
+                                if ((IsOffCooldown(PrimalRend) || HasStatusEffect(Buffs.PrimalRuinationReady)))
                                     return OriginalHook(PrimalRend);
                             }
 
@@ -113,7 +113,7 @@ namespace WrathCombo.Combos.PvP
                         if (InMeleeRange())
                         {
                             // Inner Chaos effect logic
-                            if (IsEnabled(CustomComboPreset.WARPvP_BurstMode_InnerChaos) && HasEffect(Buffs.InnerChaosReady))
+                            if (IsEnabled(CustomComboPreset.WARPvP_BurstMode_InnerChaos) && HasStatusEffect(Buffs.InnerChaosReady))
                                 return OriginalHook(Blota);
 
                             // Onslaught and Orogeny conditions for melee
@@ -121,7 +121,7 @@ namespace WrathCombo.Combos.PvP
                                 return OriginalHook(Onslaught);
 
                             // Nascent Chaos and Orogeny conditions
-                            if (IsEnabled(CustomComboPreset.WARPvP_BurstMode_Bloodwhetting) && HasEffect(Buffs.NascentChaos))
+                            if (IsEnabled(CustomComboPreset.WARPvP_BurstMode_Bloodwhetting) && HasStatusEffect(Buffs.NascentChaos))
                                 return OriginalHook(Bloodwhetting);
 
                             if (IsEnabled(CustomComboPreset.WARPvP_BurstMode_Orogeny) && !GetCooldown(Orogeny).IsCooldown && canWeave)
@@ -130,12 +130,12 @@ namespace WrathCombo.Combos.PvP
                             // PrimalRend if ready or BurstMode enabled
                             if (IsEnabled(CustomComboPreset.WARPvP_BurstMode_PrimalRend))
                             {
-                                if (IsOffCooldown(PrimalRend) || HasEffect(Buffs.PrimalRuinationReady))
+                                if (IsOffCooldown(PrimalRend) || HasStatusEffect(Buffs.PrimalRuinationReady))
                                     return OriginalHook(PrimalRend);
                             }
 
                             // Blota with specific conditions and burst mode enabled in meleerange
-                            if (IsOffCooldown(Blota) && !TargetHasEffectAny(PvPCommon.Debuffs.Stun) && IsEnabled(CustomComboPreset.WARPvP_BurstMode_Blota))
+                            if (IsOffCooldown(Blota) && !HasStatusEffect(PvPCommon.Debuffs.Stun, CurrentTarget, true) && IsEnabled(CustomComboPreset.WARPvP_BurstMode_Blota))
                             {
                                 if (Config.WARPVP_BlotaTiming == 0 && IsOffCooldown(PrimalRend))
                                     return OriginalHook(Blota);
