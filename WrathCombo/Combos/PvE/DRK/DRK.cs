@@ -14,8 +14,30 @@ using WrathCombo.Data;
 
 namespace WrathCombo.Combos.PvE;
 
-internal partial class DRK : TankJob
+internal partial class DRK : Tank
 {
+    internal class DRK_ST_BasicCombo : CustomCombo
+    {
+        protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.DRK_ST_BasicCombo;
+
+        protected override uint Invoke(uint actionID)
+        {
+            if (actionID is not Souleater)
+                return actionID;
+
+            if (ComboTimer > 0)
+            {
+                if (ComboAction is HardSlash && LevelChecked(SyphonStrike))
+                    return SyphonStrike;
+
+                if (ComboAction is SyphonStrike && LevelChecked(Souleater))
+                    return Souleater;
+            }
+
+            return HardSlash;
+        }
+    }
+    
     internal class DRK_ST_Advanced : CustomCombo
     {
         protected internal override CustomComboPreset Preset { get; } =
@@ -28,17 +50,18 @@ internal partial class DRK : TankJob
 
             const Combo comboFlags = Combo.ST | Combo.Adv;
             var newAction = HardSlash;
+            _ = IsBursting;
 
             // Unmend Option
-            if (IsEnabled(CustomComboPreset.DRK_ST_RangedUptime)
-                && LevelChecked(Unmend)
-                && !InMeleeRange()
-                && HasBattleTarget())
+            if (IsEnabled(CustomComboPreset.DRK_ST_RangedUptime) &&
+                ActionReady(Unmend) &&
+                !InMeleeRange() &&
+                HasBattleTarget())
                 return Unmend;
 
             // Opener
-            if (IsEnabled(CustomComboPreset.DRK_ST_BalanceOpener)
-                && Opener().FullOpener(ref actionID))
+            if (IsEnabled(CustomComboPreset.DRK_ST_BalanceOpener) &&
+                Opener().FullOpener(ref actionID))
             {
                 handleEdgeCasts(Opener().CurrentOpenerAction, ref actionID,
                 [
@@ -56,23 +79,30 @@ internal partial class DRK : TankJob
             if (TryGetAction<VariantAction>(comboFlags, ref newAction))
                 return newAction;
 
-            var cdBossRequirement =
-                (int)Config.DRK_ST_CDsBossRequirement ==
-                (int)Config.BossRequirement.On;
-            if (IsEnabled(CustomComboPreset.DRK_ST_CDs) &&
-                ((cdBossRequirement && InBossEncounter()) ||
-                 !cdBossRequirement) &&
-                TryGetAction<Cooldown>(comboFlags, ref newAction))
-                return newAction;
-
             var inMitigationContent =
                 ContentCheck.IsInConfiguredContent(
                     Config.DRK_ST_MitDifficulty,
                     Config.DRK_ST_MitDifficultyListSet
                 );
+
             if (IsEnabled(CustomComboPreset.DRK_ST_Mitigation) &&
                 inMitigationContent &&
                 TryGetAction<Mitigation>(comboFlags, ref newAction))
+                return newAction;
+
+            var specialManaOnly = true;
+            if (IsEnabled(CustomComboPreset.DRK_ST_Spenders) &&
+                TryGetAction<Spender>(comboFlags, ref newAction, specialManaOnly))
+                return newAction;
+
+            var cdBossRequirement =
+                (int)Config.DRK_ST_CDsBossRequirement ==
+                (int)Config.BossRequirement.On;
+            var cdBossRequirementMet = !cdBossRequirement ||
+                                       (cdBossRequirement && InBossEncounter());
+            if (IsEnabled(CustomComboPreset.DRK_ST_CDs) &&
+                cdBossRequirementMet &&
+                TryGetAction<Cooldown>(comboFlags, ref newAction))
                 return newAction;
 
             if (IsEnabled(CustomComboPreset.DRK_ST_Spenders) &&
@@ -98,6 +128,7 @@ internal partial class DRK : TankJob
 
             const Combo comboFlags = Combo.ST | Combo.Simple;
             var newAction = HardSlash;
+            _ = IsBursting;
 
             // Unmend Option
             if (ActionReady(Unmend) &&
@@ -111,13 +142,16 @@ internal partial class DRK : TankJob
             if (TryGetAction<VariantAction>(comboFlags, ref newAction))
                 return newAction;
 
-            if (TryGetAction<Cooldown>(comboFlags, ref newAction))
-                return newAction;
-
             if (TryGetAction<Mitigation>(comboFlags, ref newAction))
                 return newAction;
 
+            if (TryGetAction<Cooldown>(comboFlags, ref newAction, true))
+                return newAction;
+
             if (TryGetAction<Spender>(comboFlags, ref newAction))
+                return newAction;
+
+            if (TryGetAction<Cooldown>(comboFlags, ref newAction))
                 return newAction;
 
             if (TryGetAction<Core>(comboFlags, ref newAction))
@@ -232,7 +266,7 @@ internal partial class DRK : TankJob
             if (IsEnabled(CustomComboPreset.DRK_oGCD_SaltedEarth) &&
                 IsOffCooldown(SaltedEarth) &&
                 LevelChecked(SaltedEarth) &&
-                !HasEffect(Buffs.SaltedEarth))
+                !HasStatusEffect(Buffs.SaltedEarth))
                 return SaltedEarth;
 
             if (IsOffCooldown(CarveAndSpit) &&
@@ -242,7 +276,7 @@ internal partial class DRK : TankJob
             if (IsEnabled(CustomComboPreset.DRK_oGCD_SaltAndDarkness) &&
                 IsOffCooldown(SaltAndDarkness) &&
                 LevelChecked(SaltAndDarkness) &&
-                HasEffect(Buffs.SaltedEarth))
+                HasStatusEffect(Buffs.SaltedEarth))
                 return SaltAndDarkness;
 
             if (IsEnabled(CustomComboPreset.DRK_oGCD_Shadowbringer) &&

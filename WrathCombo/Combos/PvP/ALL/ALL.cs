@@ -1,9 +1,13 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
+﻿using System;
+using Dalamud.Game.ClientState.Objects.Types;
+using ECommons.GameHelpers;
 using System.Collections.Generic;
+using System.Linq;
 using WrathCombo.Combos.PvE;
-using WrathCombo.Core;
 using WrathCombo.CustomComboNS;
 using WrathCombo.CustomComboNS.Functions;
+using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
+using static WrathCombo.Window.Functions.UserConfig;
 
 namespace WrathCombo.Combos.PvP
 {
@@ -20,10 +24,51 @@ namespace WrathCombo.Combos.PvP
 
         internal class Config
         {
-            public const string
-                EmergencyHealThreshold = "EmergencyHealThreshold",
-                EmergencyGuardThreshold = "EmergencyGuardThreshold",
-                QuickPurifyStatuses = "QuickPurifyStatuses";
+            public static UserInt
+                EmergencyHealThreshold = new("EmergencyHealThreshold"),
+                EmergencyGuardThreshold = new("EmergencyGuardThreshold");
+            public static UserBoolArray
+                QuickPurifyStatuses = new("QuickPurifyStatuses");
+
+            internal static void Draw(CustomComboPreset preset)
+            {
+                switch (preset)
+                {
+                    case CustomComboPreset.PvP_EmergencyHeals:
+                        if (Player.Object != null)
+                        {
+                            uint maxHP = Player.Object.MaxHp <= 15000 ? 0 : Player.Object.MaxHp - 15000;
+
+                            if (maxHP > 0)
+                            {
+                                int setting = EmergencyHealThreshold;
+                                float hpThreshold = (float)maxHP / 100 * setting;
+
+                                DrawSliderInt(1, 100, EmergencyHealThreshold, $"Set the percentage to be at or under for the feature to kick in.\n100% is considered to start at 15,000 less than your max HP to prevent wastage.\nHP Value to be at or under: {hpThreshold}");
+                            }
+
+                            else
+                            {
+                                DrawSliderInt(1, 100, EmergencyHealThreshold, "Set the percentage to be at or under for the feature to kick in.\n100% is considered to start at 15,000 less than your max HP to prevent wastage.");
+                            }
+                        }
+
+                        else
+                        {
+                            DrawSliderInt(1, 100, EmergencyHealThreshold, "Set the percentage to be at or under for the feature to kick in.\n100% is considered to start at 15,000 less than your max HP to prevent wastage.");
+                        }
+                        
+                        break;
+
+                    case CustomComboPreset.PvP_EmergencyGuard:
+                        DrawSliderInt(1, 100, EmergencyGuardThreshold, "Set the percentage to be at or under for the feature to kick in.");
+                        break;
+
+                    case CustomComboPreset.PvP_QuickPurify:
+                        DrawPvPStatusMultiChoice(QuickPurifyStatuses);
+                        break;
+                }
+            }
         }
 
         internal class Debuffs
@@ -52,11 +97,11 @@ namespace WrathCombo.Combos.PvP
         /// <param name="optionalTarget"> Optional target to check. </param>
         public static bool TargetImmuneToDamage(bool includeReductions = true, IGameObject? optionalTarget = null)
         {
-            var t = optionalTarget ?? CustomComboFunctions.CurrentTarget;
-            if (t is null || !CustomComboFunctions.InPvP()) return false;
+            var t = optionalTarget ?? CurrentTarget;
+            if (t is null || !InPvP()) return false;
 
-            bool targetHasReductions = CustomComboFunctions.TargetHasEffectAny(Buffs.Guard, t) || CustomComboFunctions.TargetHasEffectAny(VPRPvP.Buffs.HardenedScales, t);
-            bool targetHasImmunities = CustomComboFunctions.TargetHasEffectAny(DRKPvP.Buffs.UndeadRedemption, t) || CustomComboFunctions.TargetHasEffectAny(PLDPvP.Buffs.HallowedGround, t);
+            bool targetHasReductions = HasStatusEffect(Buffs.Guard, t, true) || HasStatusEffect(VPRPvP.Buffs.HardenedScales, t, true);
+            bool targetHasImmunities = HasStatusEffect(DRKPvP.Buffs.UndeadRedemption, t, true) || HasStatusEffect(PLDPvP.Buffs.HallowedGround, t, true);
 
             return includeReductions
                 ? targetHasReductions || targetHasImmunities
@@ -69,7 +114,7 @@ namespace WrathCombo.Combos.PvP
             GNBPvP.RelentlessRush, SAMPvP.Zantetsuken, RPRPvP.TenebraeLemurum, DRKPvP.Eventide, MCHPvP.MarksmanSpite, RDMPvP.SouthernCross, NINPvP.SeitonTenchu, NINPvP.Huton, NINPvP.Meisui, NINPvP.ThreeMudra, SGEPvP.Pneuma, SGEPvP.Mesotes, DRKPvP.BlackestNight,
             DRGPvP.HorridRoar, SAMPvP.Soten, SAMPvP.Chiten, MNKPvP.RiddleOfEarth, MNKPvP.EarthsReply, DNCPvP.CuringWaltz, DNCPvP.Contradance, PLDPvP.Phalanx, PLDPvP.HolySheltron, DRKPvP.Impalement, DRKPvP.SaltedEarth, DRKPvP.SaltAndDarkness, DRKPvP.Plunge, VPRPvP.Slither, VPRPvP.Backlash, VPRPvP.WorldSwallower, VPRPvP.SnakeScales, PCTPvP.Smudge, PCTPvP.HolyInWhite, PCTPvP.TemperaCoat, PCTPvP.StarPrism,
             PLDPvP.HolySpirit, PLDPvP.Guardian, PLDPvP.Intervene, WARPvP.Onslaught, WARPvP.PrimalRend, WARPvP.Bloodwhetting, WARPvP.Blota, WARPvP.PrimalScream, GNBPvP.RelentlessRush, GNBPvP.HeartOfCorundum, GNBPvP.FatedCircle, Recuperate, Sprint, Purify, StandardElixir, Teleport, RDMPvP.Forte, RDMPvP.Displacement, MCHPvP.BishopTurret, MCHPvP.Scattergun,
-            BRDPvP.RepellingShot, SCHPvP.Expedient, SCHPvP.Aqloquilum, SMNPvP.CrimsonCyclone, SMNPvP.RadiantAegis, ASTPvP.Microcosmos, ASTPvP.Macrocosmos, WHMPvP.Cure2, WHMPvP.Cure3, WHMPvP.AfflatusPurgation, WHMPvP.Aquaveil, BLMPvP.Burst, DRGPvP.SkyHigh],
+            BRDPvP.RepellingShot, SCHPvP.Expedient, SCHPvP.Adloquilum, SMNPvP.CrimsonCyclone, SMNPvP.RadiantAegis, ASTPvP.Microcosmos, ASTPvP.Macrocosmos, WHMPvP.Cure2, WHMPvP.Cure3, WHMPvP.AfflatusPurgation, WHMPvP.Aquaveil, BLMPvP.Burst, DRGPvP.SkyHigh],
 
             GlobalSkills = [Teleport, Guard, Recuperate, Purify, StandardElixir, Sprint];
 
@@ -79,7 +124,7 @@ namespace WrathCombo.Combos.PvP
 
             protected override uint Invoke(uint actionID)
             {
-                if ((HasEffect(Buffs.Guard) || JustUsed(Guard)) && IsEnabled(CustomComboPreset.PvP_MashCancel))
+                if ((HasStatusEffect(Buffs.Guard) || JustUsed(Guard)) && IsEnabled(CustomComboPreset.PvP_MashCancel))
                 {
                     if (MovmentSkills.Contains(actionID))
                     {
@@ -101,15 +146,15 @@ namespace WrathCombo.Combos.PvP
             public static bool Execute()
             {
                 var jobMaxHp = LocalPlayer.MaxHp;
-                var threshold = PluginConfiguration.GetCustomIntValue(Config.EmergencyHealThreshold);
+                int threshold = Config.EmergencyHealThreshold;
                 var maxHPThreshold = jobMaxHp - 15000;
                 var remainingPercentage = (float)LocalPlayer.CurrentHp / (float)maxHPThreshold;
 
 
-                if (HasEffect(3180)) return false; //DRG LB buff
-                if (HasEffectAny(1420)) return false; //Rival Wings Mounted
-                if (HasEffect(4096)) return false; //VPR Snakesbane
-                if (HasEffect(DRKPvP.Buffs.UndeadRedemption)) return false;
+                if (HasStatusEffect(3180)) return false; //DRG LB buff
+                if (HasStatusEffect(1420, anyOwner: true)) return false; //Rival Wings Mounted
+                if (HasStatusEffect(4096)) return false; //VPR Snakesbane
+                if (HasStatusEffect(DRKPvP.Buffs.UndeadRedemption)) return false;
                 if (LocalPlayer.CurrentMp < 2500) return false;
                 if (remainingPercentage * 100 > threshold) return false;
 
@@ -124,7 +169,7 @@ namespace WrathCombo.Combos.PvP
 
             protected override uint Invoke(uint actionID)
             {
-                if (HasEffect(Buffs.Guard) && IsEnabled(CustomComboPreset.PvP_MashCancel))
+                if ((HasStatusEffect(Buffs.Guard) || JustUsed(Guard)) && IsEnabled(CustomComboPreset.PvP_MashCancel))
                 {
                     if (MovmentSkills.Contains(actionID) || JustUsed(Guard))
                     {
@@ -155,14 +200,14 @@ namespace WrathCombo.Combos.PvP
             public static bool Execute()
             {
                 var jobMaxHp = LocalPlayer.MaxHp;
-                var threshold = PluginConfiguration.GetCustomIntValue(Config.EmergencyGuardThreshold);
+                var threshold = Config.EmergencyGuardThreshold;
                 var remainingPercentage = (float)LocalPlayer.CurrentHp / (float)jobMaxHp;
 
-                if (HasEffect(3180)) return false; //DRG LB buff
-                if (HasEffect(4096)) return false; //VPR Snakesbane
-                if (HasEffectAny(1420)) return false; //Rival Wings Mounted
-                if (HasEffect(DRKPvP.Buffs.UndeadRedemption)) return false;
-                if (HasEffectAny(Debuffs.Unguarded) || HasEffect(WARPvP.Buffs.InnerRelease)) return false;
+                if (HasStatusEffect(3180)) return false; //DRG LB buff
+                if (HasStatusEffect(4096)) return false; //VPR Snakesbane
+                if (HasStatusEffect(1420, anyOwner: true)) return false; //Rival Wings Mounted
+                if (HasStatusEffect(DRKPvP.Buffs.UndeadRedemption)) return false;
+                if (HasStatusEffect(Debuffs.Unguarded, anyOwner: true) || HasStatusEffect(WARPvP.Buffs.InnerRelease)) return false;
                 if (GetCooldown(Guard).IsCooldown) return false;
                 if (remainingPercentage * 100 > threshold) return false;
 
@@ -175,9 +220,21 @@ namespace WrathCombo.Combos.PvP
         {
             protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.PvP_QuickPurify;
 
+            public static (ushort debuff, string label)[] Statuses =
+            [
+                (Debuffs.Stun, "Stun"),
+                (Debuffs.DeepFreeze, "Deep Freeze"),
+                (Debuffs.HalfAsleep, "Half Asleep"), // todo: remove, reset cfg
+                (Debuffs.Sleep, "Sleep"), // todo: remove, reset cfg
+                (Debuffs.Bind, "Bind"),
+                (Debuffs.Heavy, "Heavy"),
+                (Debuffs.Silence, "Silence"),
+                (Debuffs.MiracleOfNature, "Miracle of Nature"),
+            ];
+
             protected override uint Invoke(uint actionID)
             {
-                if ((HasEffect(Buffs.Guard) || JustUsed(Guard)) && IsEnabled(CustomComboPreset.PvP_MashCancel))
+                if ((HasStatusEffect(Buffs.Guard) || JustUsed(Guard)) && IsEnabled(CustomComboPreset.PvP_MashCancel))
                 {
                     if (MovmentSkills.Contains(actionID))
                     {
@@ -197,25 +254,24 @@ namespace WrathCombo.Combos.PvP
 
             public static bool Execute()
             {
-                var selectedStatuses = PluginConfiguration.GetCustomBoolArrayValue(Config.QuickPurifyStatuses);
+                bool[] selectedStatuses = Config.QuickPurifyStatuses;
 
-                if (HasEffect(3180)) return false; //DRG LB buff
-                if (HasEffect(4096)) return false; //VPR Snakesbane
-                if (HasEffectAny(1420)) return false; //Rival Wings Mounted
-
+                // Bail if nothing is enabled
                 if (selectedStatuses.Length == 0) return false;
+                // Make sure new statuses are supported
+                Array.Resize(ref selectedStatuses, Statuses.Length);
+                // Bail if Purify is not available
                 if (GetCooldown(Purify).IsCooldown) return false;
-                if (HasEffectAny(Debuffs.Stun) && selectedStatuses[0]) return true;
-                if (HasEffectAny(Debuffs.DeepFreeze) && selectedStatuses[1]) return true;
-                if (HasEffectAny(Debuffs.HalfAsleep) && selectedStatuses[2]) return true;
-                if (HasEffectAny(Debuffs.Sleep) && selectedStatuses[3]) return true;
-                if (HasEffectAny(Debuffs.Bind) && selectedStatuses[4]) return true;
-                if (HasEffectAny(Debuffs.Heavy) && selectedStatuses[5]) return true;
-                if (HasEffectAny(Debuffs.Silence) && selectedStatuses[6]) return true;
-                if (HasEffectAny(Debuffs.MiracleOfNature) && selectedStatuses[7]) return true;
 
-                return false;
+                // Don't purify if under some buffs
+                if (HasStatusEffect(3180) || //DRG LB buff
+                    HasStatusEffect(4096) || //VPR Snake's Bane
+                    HasStatusEffect(1420, anyOwner: true)) //Rival Wings Mounted
+                    return false;
 
+                // Check if the status is present and one the user wants purified
+                return selectedStatuses.Where((t, i) =>
+                    t && HasStatusEffect(Statuses[i].debuff, anyOwner: true)).Any();
             }
         }
 

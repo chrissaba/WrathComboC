@@ -11,6 +11,9 @@ using WrathCombo.CustomComboNS;
 using WrathCombo.CustomComboNS.Functions;
 using WrathCombo.Data;
 using WrathCombo.Extensions;
+using ECommons.GameHelpers;
+using WrathCombo.Services;
+using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
 namespace WrathCombo.Combos.PvE;
 
 internal partial class AST
@@ -27,8 +30,26 @@ internal partial class AST
         };
     public static ASTOpenerMaxLevel1 Opener1 = new();
 
-    public static ASTGauge Gauge => CustomComboFunctions.GetJobGauge<ASTGauge>();
+    public static ASTGauge Gauge => GetJobGauge<ASTGauge>();
     public static CardType DrawnCard { get; set; }
+
+    public static Dictionary<byte, int> JobPriorities = new()
+    {
+    { SAM.JobID, 1 },
+    { NIN.JobID, 2 },
+    { VPR.JobID, 3 },
+    { DRG.JobID, 4 },
+    { MNK.JobID, 5 },
+    { DRK.JobID, 6 },
+    { RPR.JobID, 7 },
+    { PCT.JobID, 8 },
+    { SMN.JobID, 9 },
+    { MCH.JobID, 10 },
+    { BRD.JobID, 11 },
+    { RDM.JobID, 12 },
+    { DNC.JobID, 13 },
+    { BLM.JobID, 14 }
+    };
 
     public static int SpellsSinceDraw()
     {
@@ -41,7 +62,7 @@ internal partial class AST
             idx = 0;
 
         int ret = 0;
-        for(int i = idx; i < ActionWatching.CombatActions.Count; i++)
+        for (int i = idx; i < ActionWatching.CombatActions.Count; i++)
         {
             if (ActionWatching.GetAttackType(ActionWatching.CombatActions[i]) == ActionWatching.ActionAttackType.Spell)
                 ret++;
@@ -75,10 +96,10 @@ internal partial class AST
             DrawnCard = Gauge.DrawnCards[0];
         }
 
-        if (CustomComboFunctions.IsEnabled(CustomComboPreset.AST_Cards_QuickTargetCards) &&
+        if (IsEnabled(CustomComboPreset.AST_Cards_QuickTargetCards) &&
             (QuickTargetCards.SelectedRandomMember is null || BetterTargetAvailable()))
         {
-            if (CustomComboFunctions.ActionReady(Play1))
+            if (ActionReady(Play1))
                 QuickTargetCards.Invoke();
         }
 
@@ -90,18 +111,18 @@ internal partial class AST
     {
         if (QuickTargetCards.SelectedRandomMember is null ||
             QuickTargetCards.SelectedRandomMember.IsDead ||
-            CustomComboFunctions.OutOfRange(Balance, QuickTargetCards.SelectedRandomMember))
+            OutOfRange(Balance, QuickTargetCards.SelectedRandomMember))
             return true;
 
         IBattleChara? m = QuickTargetCards.SelectedRandomMember as IBattleChara;
-        if (DrawnCard is CardType.Balance && CustomComboFunctions.JobIDs.Melee.Any(x => x == m.ClassJob.RowId) ||
-            DrawnCard is CardType.Spear && CustomComboFunctions.JobIDs.Ranged.Any(x => x == m.ClassJob.RowId))
+        if (DrawnCard is CardType.Balance && JobIDs.Melee.Any(x => x == m.ClassJob.RowId) ||
+            DrawnCard is CardType.Spear && JobIDs.Ranged.Any(x => x == m.ClassJob.RowId))
             return false;
 
         List<IBattleChara> targets = new();
-        for(int i = 1; i <= 8; i++) //Checking all 8 available slots and skipping nulls & DCs
+        for (int i = 1; i <= 8; i++) //Checking all 8 available slots and skipping nulls & DCs
         {
-            if (CustomComboFunctions.GetPartySlot(i) is not IBattleChara member)
+            if (PartyUITargeting.GetPartySlot(i) is not IBattleChara member)
                 continue;
             if (member.GameObjectId == QuickTargetCards.SelectedRandomMember.GameObjectId)
                 continue;
@@ -109,17 +130,15 @@ internal partial class AST
                 continue; //Skip nulls/disconnected people
             if (member.IsDead)
                 continue;
-            if (CustomComboFunctions.OutOfRange(Balance, member))
+            if (OutOfRange(Balance, member))
                 continue;
 
-            if (CustomComboFunctions.FindEffectOnMember(Buffs.BalanceBuff, member) is not null)
-                continue;
-            if (CustomComboFunctions.FindEffectOnMember(Buffs.SpearBuff, member) is not null)
-                continue;
+            if (HasStatusEffect(Buffs.BalanceBuff, member, true)) continue;
+            if (HasStatusEffect(Buffs.SpearBuff, member, true)) continue;
 
-            if (Config.AST_QuickTarget_SkipDamageDown && CustomComboFunctions.TargetHasDamageDown(member))
+            if (Config.AST_QuickTarget_SkipDamageDown && TargetHasDamageDown(member))
                 continue;
-            if (Config.AST_QuickTarget_SkipRezWeakness && CustomComboFunctions.TargetHasRezWeakness(member))
+            if (Config.AST_QuickTarget_SkipRezWeakness && TargetHasRezWeakness(member))
                 continue;
 
             if (member.GetRole() is CombatRole.Healer or CombatRole.Tank)
@@ -130,8 +149,8 @@ internal partial class AST
 
         if (targets.Count == 0)
             return false;
-        if (DrawnCard is CardType.Balance && targets.Any(x => CustomComboFunctions.JobIDs.Melee.Any(y => y == x.ClassJob.RowId)) ||
-            DrawnCard is CardType.Spear && targets.Any(x => CustomComboFunctions.JobIDs.Ranged.Any(y => y == x.ClassJob.RowId)))
+        if (DrawnCard is CardType.Balance && targets.Any(x => JobIDs.Melee.Any(y => y == x.ClassJob.RowId)) ||
+            DrawnCard is CardType.Spear && targets.Any(x => JobIDs.Ranged.Any(y => y == x.ClassJob.RowId)))
         {
             QuickTargetCards.SelectedRandomMember = null;
             return true;
@@ -152,15 +171,15 @@ internal partial class AST
         {
             if (DrawnCard is not CardType.None)
             {
-                if (GetPartySlot(2) is not null)
+                if (PartyUITargeting.GetPartySlot(2) is not null)
                 {
                     _ = SetTarget();
                     Svc.Log.Debug($"Set card to {SelectedRandomMember?.Name}");
                 }
                 else
                 {
-                    Svc.Log.Debug($"Setting card to {LocalPlayer?.Name}");
-                    SelectedRandomMember = LocalPlayer;
+                    Svc.Log.Debug($"Setting card to {Player.Name}");
+                    SelectedRandomMember = Player.Object;
                 }
             }
             else
@@ -175,9 +194,9 @@ internal partial class AST
                 return false;
             CardType cardDrawn = Gauge.DrawnCards[0];
             PartyTargets.Clear();
-            for(int i = 1; i <= 8; i++) //Checking all 8 available slots and skipping nulls & DCs
+            for (int i = 1; i <= 8; i++) //Checking all 8 available slots and skipping nulls & DCs
             {
-                if (GetPartySlot(i) is not IBattleChara member)
+                if (PartyUITargeting.GetPartySlot(i) is not IBattleChara member)
                     continue;
                 if (member is null)
                     continue; //Skip nulls/disconnected people
@@ -186,10 +205,8 @@ internal partial class AST
                 if (OutOfRange(Balance, member))
                     continue;
 
-                if (FindEffectOnMember(Buffs.BalanceBuff, member) is not null)
-                    continue;
-                if (FindEffectOnMember(Buffs.SpearBuff, member) is not null)
-                    continue;
+                if (HasStatusEffect(Buffs.BalanceBuff, member, true)) continue;
+                if (HasStatusEffect(Buffs.SpearBuff, member, true)) continue;
 
                 if (Config.AST_QuickTarget_SkipDamageDown && TargetHasDamageDown(member))
                     continue;
@@ -201,9 +218,9 @@ internal partial class AST
             //The inevitable "0 targets found" because of debuffs
             if (PartyTargets.Count == 0)
             {
-                for(int i = 1; i <= 8; i++) //Checking all 8 available slots and skipping nulls & DCs
+                for (int i = 1; i <= 8; i++) //Checking all 8 available slots and skipping nulls & DCs
                 {
-                    if (GetPartySlot(i) is not IBattleChara member)
+                    if (PartyUITargeting.GetPartySlot(i) is not IBattleChara member)
                         continue;
                     if (member is null)
                         continue; //Skip nulls/disconnected people
@@ -212,9 +229,9 @@ internal partial class AST
                     if (OutOfRange(Balance, member))
                         continue;
 
-                    if (FindEffectOnMember(Buffs.BalanceBuff, member) is not null)
+                    if (HasStatusEffect(Buffs.BalanceBuff, member, true))
                         continue;
-                    if (FindEffectOnMember(Buffs.SpearBuff, member) is not null)
+                    if (HasStatusEffect(Buffs.SpearBuff, member, true))
                         continue;
 
                     PartyTargets.Add(member);
@@ -233,7 +250,28 @@ internal partial class AST
             //Grok is a scary SOB
             if (PartyTargets.Count > 0)
             {
-                PartyTargets.Shuffle();
+                //Start of AST Fixed Prio
+                if (Config.AST_QuickTarget_Prio)
+                {
+                    PartyTargets.Sort((x, y) =>
+                    {
+                        int GetPriority(IGameObject obj)
+                        {
+                            if (obj is not IBattleChara chara)
+                                return int.MaxValue;
+
+                            return JobPriorities.TryGetValue((byte)chara.ClassJob.RowId, out int priority) ? priority : 99;
+
+                        }
+
+                        return GetPriority(x).CompareTo(GetPriority(y));
+                    });
+                }
+                else
+                {
+                    PartyTargets.Shuffle();
+                }
+                //End of AST Fixed prio
 
                 IGameObject? suitableDps = null;
                 IGameObject? unsuitableDps = null;
@@ -320,22 +358,22 @@ internal partial class AST
 
         public override bool HasCooldowns()
         {
-            if (CustomComboFunctions.GetCooldown(EarthlyStar).CooldownElapsed >= 4f)
+            if (GetCooldown(EarthlyStar).CooldownElapsed >= 4f)
                 return false;
 
-            if (!CustomComboFunctions.ActionReady(Lightspeed))
+            if (!ActionReady(Lightspeed))
                 return false;
 
-            if (!CustomComboFunctions.ActionReady(Divination))
+            if (!ActionReady(Divination))
                 return false;
 
-            if (!CustomComboFunctions.ActionReady(Balance))
+            if (!ActionReady(Balance))
                 return true;
 
-            if (!CustomComboFunctions.ActionReady(LordOfCrowns))
+            if (!ActionReady(LordOfCrowns))
                 return false;
 
-            if (!CustomComboFunctions.ActionReady(UmbralDraw))
+            if (!ActionReady(UmbralDraw))
                 return false;
 
             return true;

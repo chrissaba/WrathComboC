@@ -146,7 +146,7 @@ namespace WrathCombo.Window.Tabs
             {
                 foreach (Status? status in LocalPlayer.StatusList)
                 {
-                    float buffDuration = GetBuffRemainingTime((ushort) status.StatusId, false);
+                    float buffDuration = GetStatusEffectRemainingTime((ushort) status.StatusId, anyOwner: true);
                     string formattedDuration = "";
                     if (buffDuration != 0 && !statusBlacklist.Contains(status.StatusId))
                     {
@@ -296,7 +296,7 @@ namespace WrathCombo.Window.Tabs
                         else CustomStyleText("", status.StatusId);
 
                         // Duration + Blacklist Check
-                        float debuffDuration = GetDebuffRemainingTime((ushort) status.StatusId, false);
+                        float debuffDuration = GetStatusEffectRemainingTime((ushort) status.StatusId, CurrentTarget, true);
                         if (debuffDuration != 0 && !statusBlacklist.Contains(status.StatusId))
                         {
                             string formattedDuration;
@@ -325,10 +325,7 @@ namespace WrathCombo.Window.Tabs
                 CustomStyleText("Hitbox Radius:", target?.HitboxRadius);
                 CustomStyleText("In Melee Range:", InMeleeRange());
                 CustomStyleText("Requires Postionals:", TargetNeedsPositionals());
-                CustomStyleText("Relative Position:",
-                    AngleToTarget() is 2 ? "Rear" :
-                    (AngleToTarget() is 1 or 3) ? "Flank" :
-                    AngleToTarget() is 4 ? "Front" : "");
+                CustomStyleText("Relative Position:", AngleToTarget().ToString());
                 CustomStyleText("Health:",
                     $"{EnemyHealthCurrentHp():N0} / {EnemyHealthMaxHp():N0} ({Math.Round(GetTargetHPPercent(), 2)}%)");
                 CustomStyleText("Shield:",

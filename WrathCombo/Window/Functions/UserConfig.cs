@@ -1,22 +1,16 @@
-﻿using Dalamud.Game.ClientState.Objects.SubKinds;
-using Dalamud.Interface;
+﻿using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
-using ECommons.DalamudServices;
-using ECommons.GameFunctions;
 using ECommons.ImGuiMethods;
 using ImGuiNET;
 using System;
 using System.Numerics;
-using WrathCombo.Combos;
 using WrathCombo.Combos.PvP;
 using WrathCombo.Core;
 using WrathCombo.CustomComboNS.Functions;
 using WrathCombo.Data;
 using WrathCombo.Services;
-using static FFXIVClientStructs.FFXIV.Client.UI.RaptureAtkHistory.Delegates;
-
 
 namespace WrathCombo.Window.Functions
 {
@@ -399,7 +393,7 @@ namespace WrathCombo.Window.Functions
             var finishPos = ImGui.GetCursorPosX() + labelW.X + ImGui.GetStyle().ItemSpacing.X;
             if (finishPos >= ImGui.GetContentRegionMax().X)
                 ImGui.NewLine();
-            
+
             bool enabled = output == outputValue;
 
             bool o = false;
@@ -495,7 +489,7 @@ namespace WrathCombo.Window.Functions
                 ImGuiEx.Spacing(new Vector2(3, 0));
                 if (isConditionalChoice) ImGui.Indent(); //Align checkbox after the + symbol
             }
-            if (ImGui.Checkbox($"{checkBoxName}###{config}", ref output))
+            if (ImGui.Checkbox($"{checkBoxName}##{config}", ref output))
             {
                 DebugFile.AddLog($"Set Config {config} to {output}");
                 PluginConfiguration.SetCustomBoolValue(config, output);
@@ -567,84 +561,31 @@ namespace WrathCombo.Window.Functions
             ImGui.Unindent();
         }
 
+        /// <seealso cref="PvPCommon.QuickPurify.Statuses">
+        ///     PvP Purifiable Statuses List
+        /// </seealso>
+        /// <seealso cref="PvPCommon.Config.QuickPurifyStatuses">
+        ///     User-Selected List of Status to Purify
+        /// </seealso>
         public static void DrawPvPStatusMultiChoice(string config)
         {
             bool[]? values = PluginConfiguration.GetCustomBoolArrayValue(config);
-
-            ImGui.Columns(4, $"{config}", false);
-
-            Array.Resize(ref values, 8);
+            Array.Resize(ref values, PvPCommon.QuickPurify.Statuses.Length);
 
             ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.ParsedPink);
+            ImGui.Columns(4, $"{config}", false);
 
-            if (ImGui.Checkbox($"Stun###{config}0", ref values[0]))
+            for (var i = 0; i < PvPCommon.QuickPurify.Statuses.Length; i++)
             {
-                DebugFile.AddLog($"Set Config {config} to {string.Join(", ", values)}");
-                PluginConfiguration.SetCustomBoolArrayValue(config, values);
-                Service.Configuration.Save();
-            }
+                var status = PvPCommon.QuickPurify.Statuses[i];
+                if (ImGui.Checkbox($"{status.label}###{config}{i}", ref values[i]))
+                {
+                    DebugFile.AddLog($"Set Config {config} to {string.Join(", ", values)}");
+                    PluginConfiguration.SetCustomBoolArrayValue(config, values);
+                    Service.Configuration.Save();
+                }
 
-            ImGui.NextColumn();
-
-            if (ImGui.Checkbox($"Deep Freeze###{config}1", ref values[1]))
-            {
-                DebugFile.AddLog($"Set Config {config} to {string.Join(", ", values)}");
-                PluginConfiguration.SetCustomBoolArrayValue(config, values);
-                Service.Configuration.Save();
-            }
-
-            ImGui.NextColumn();
-
-            if (ImGui.Checkbox($"Half Asleep###{config}2", ref values[2]))
-            {
-                DebugFile.AddLog($"Set Config {config} to {string.Join(", ", values)}");
-                PluginConfiguration.SetCustomBoolArrayValue(config, values);
-                Service.Configuration.Save();
-            }
-
-            ImGui.NextColumn();
-
-            if (ImGui.Checkbox($"Sleep###{config}3", ref values[3]))
-            {
-                DebugFile.AddLog($"Set Config {config} to {string.Join(", ", values)}");
-                PluginConfiguration.SetCustomBoolArrayValue(config, values);
-                Service.Configuration.Save();
-            }
-
-            ImGui.NextColumn();
-
-            if (ImGui.Checkbox($"Bind###{config}4", ref values[4]))
-            {
-                DebugFile.AddLog($"Set Config {config} to {string.Join(", ", values)}");
-                PluginConfiguration.SetCustomBoolArrayValue(config, values);
-                Service.Configuration.Save();
-            }
-
-            ImGui.NextColumn();
-
-            if (ImGui.Checkbox($"Heavy###{config}5", ref values[5]))
-            {
-                DebugFile.AddLog($"Set Config {config} to {string.Join(", ", values)}");
-                PluginConfiguration.SetCustomBoolArrayValue(config, values);
-                Service.Configuration.Save();
-            }
-
-            ImGui.NextColumn();
-
-            if (ImGui.Checkbox($"Silence###{config}6", ref values[6]))
-            {
-                DebugFile.AddLog($"Set Config {config} to {string.Join(", ", values)}");
-                PluginConfiguration.SetCustomBoolArrayValue(config, values);
-                Service.Configuration.Save();
-            }
-
-            ImGui.NextColumn();
-
-            if (ImGui.Checkbox($"Miracle of Nature###{config}7", ref values[7]))
-            {
-                DebugFile.AddLog($"Set Config {config} to {string.Join(", ", values)}");
-                PluginConfiguration.SetCustomBoolArrayValue(config, values);
-                Service.Configuration.Save();
+                ImGui.NextColumn();
             }
 
             ImGui.Columns(1);
@@ -992,82 +933,6 @@ namespace WrathCombo.Window.Functions
         {
             DebugFile.AddLog($"Set Config {config} to default");
             UserData.MasterList[config].ResetToDefault();
-        }
-    }
-
-    public static class UserConfigItems
-    {
-        /// <summary> Draws the User Configurable settings. </summary>
-        /// <param name="preset"> The preset it's attached to. </param>
-        /// <param name="enabled"> If it's enabled or not. </param>
-        internal static void Draw(CustomComboPreset preset, bool enabled)
-        {
-            if (!enabled) return;
-
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            // ====================================================================================
-            #region PvP VALUES
-
-            IPlayerCharacter? pc = Svc.ClientState.LocalPlayer;
-
-            if (preset == CustomComboPreset.PvP_EmergencyHeals)
-            {
-                if (pc != null)
-                {
-                    uint maxHP = Svc.ClientState.LocalPlayer?.MaxHp <= 15000 ? 0 : Svc.ClientState.LocalPlayer.MaxHp - 15000;
-
-                    if (maxHP > 0)
-                    {
-                        int setting = PluginConfiguration.GetCustomIntValue(PvPCommon.Config.EmergencyHealThreshold);
-                        float hpThreshold = (float)maxHP / 100 * setting;
-
-                        UserConfig.DrawSliderInt(1, 100, PvPCommon.Config.EmergencyHealThreshold, $"Set the percentage to be at or under for the feature to kick in.\n100% is considered to start at 15,000 less than your max HP to prevent wastage.\nHP Value to be at or under: {hpThreshold}");
-                    }
-
-                    else
-                    {
-                        UserConfig.DrawSliderInt(1, 100, PvPCommon.Config.EmergencyHealThreshold, "Set the percentage to be at or under for the feature to kick in.\n100% is considered to start at 15,000 less than your max HP to prevent wastage.");
-                    }
-                }
-
-                else
-                {
-                    UserConfig.DrawSliderInt(1, 100, PvPCommon.Config.EmergencyHealThreshold, "Set the percentage to be at or under for the feature to kick in.\n100% is considered to start at 15,000 less than your max HP to prevent wastage.");
-                }
-            }
-
-            if (preset == CustomComboPreset.PvP_EmergencyGuard)
-                UserConfig.DrawSliderInt(1, 100, PvPCommon.Config.EmergencyGuardThreshold, "Set the percentage to be at or under for the feature to kick in.");
-
-            if (preset == CustomComboPreset.PvP_QuickPurify)
-                UserConfig.DrawPvPStatusMultiChoice(PvPCommon.Config.QuickPurifyStatuses);
-
-            #endregion
         }
     }
 

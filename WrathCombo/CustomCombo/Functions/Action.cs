@@ -84,12 +84,20 @@ namespace WrathCombo.CustomComboNS.Functions
         /// <returns></returns>
         public static int GetTraitLevel(uint id) => ActionWatching.GetTraitLevel(id);
 
-        /// <summary> Checks if the player can use an action based on the level required and off cooldown / has charges.</summary>
+        /// <summary> Checks if the player can use an action based on the level required and whether it has charges / is off cooldown. </summary>
         /// <param name="id"> ID of the action. </param>
-        /// <returns></returns>
-        //Note: Testing so far shows non charge skills have a max charge of 1, and it's zero during cooldown
-        public static unsafe bool ActionReady(uint id) => ((GetCooldownRemainingTime(OriginalHook(id)) <= RemainingGCD + 0.5f && ActionWatching.GetAttackType(id) != ActionWatching.ActionAttackType.Ability) || HasCharges(OriginalHook(id))) && ActionManager.Instance()->GetActionStatus(ActionType.Action, OriginalHook(id), checkRecastActive: false, checkCastingActive: false) is 0 or 582 or 580;
+        /// <returns> Non-charge actions have a charge value of 1 when off cooldown; otherwise they have a value of 0. </returns>
+        public static unsafe bool ActionReady(uint id)
+        {
+            uint hookedId = OriginalHook(id);
 
+            return ((GetCooldownRemainingTime(hookedId) <= RemainingGCD + 0.5f && ActionWatching.GetAttackType(hookedId) != ActionWatching.ActionAttackType.Ability) ||
+                HasCharges(hookedId)) && ActionManager.Instance()->GetActionStatus(ActionType.Action, hookedId, checkRecastActive: false, checkCastingActive: false) is 0 or 582 or 580;
+        }
+
+        /// <summary> Checks if all passed actions are ready to be used. </summary>
+        /// <param name="ids"> IDs of the actions. </param>
+        /// <returns></returns>
         public static bool ActionsReady(uint[] ids)
         {
             foreach (var id in ids)
@@ -101,7 +109,7 @@ namespace WrathCombo.CustomComboNS.Functions
         /// <summary> Checks if the last action performed was the passed ID. </summary>
         /// <param name="id"> ID of the action. </param>
         /// <returns></returns>
-        public static bool WasLastAction(uint id) => ActionWatching.CombatActions.Count > 0 ? ActionWatching.CombatActions.LastOrDefault() == id : false;
+        public static bool WasLastAction(uint id) => ActionWatching.CombatActions.Count > 0 && ActionWatching.CombatActions.LastOrDefault() == id;
 
         /// <summary> Returns how many times in a row the last action was used. </summary>
         /// <returns></returns>
@@ -203,13 +211,6 @@ namespace WrathCombo.CustomComboNS.Functions
             return (RemainingGCD > weaveTime) || (HasSilence() && HasPacification());
         }
 
-        // This overload exists to prevent actionID uint from compiling
-        [Obsolete("ActionID (uint) is not allowed. Use time (double) instead.", true)]
-        public static bool CanWeave(uint value)
-        {
-            return false;
-        }
-
         /// <summary> Checks if the provided actionID has enough cooldown remaining to weave against it without causing clipping and checks if you're casting a spell. </summary>
         /// <param name="weaveTime"> Time when weaving window is over. Defaults to 0.6. </param>
         /// 
@@ -225,13 +226,6 @@ namespace WrathCombo.CustomComboNS.Functions
             return false;
         }
 
-        // This overload exists to prevent actionID uint from compiling
-        [Obsolete("ActionID (uint) is not allowed. Use time (double) instead.", true)]
-        public static bool CanSpellWeave(uint value)
-        {
-            return false;
-        }
-
         /// <summary> Checks if the provided actionID has enough cooldown remaining to weave against it in the later portion of the GCD without causing clipping. </summary>
         /// <param name="start"> Time (in seconds) to start to check for the weave window. If this value is greater than half of a GCD, it will instead use half a GCD instead to ensure it lands in the latter half.</param>
         /// <param name="end"> Time (in seconds) to end the check for the weave window. </param>
@@ -241,13 +235,6 @@ namespace WrathCombo.CustomComboNS.Functions
         {
             float halfGCD = GCDTotal / 2f;
             return RemainingGCD <= (start > halfGCD ? halfGCD : start) && RemainingGCD >= end;
-        }
-
-        // This overload exists to prevent actionID uint from compiling
-        [Obsolete("ActionID (uint) is not allowed. Use time (double) instead.", true)]
-        public static unsafe bool CanDelayedWeave(uint value)
-        {
-            return false;
         }
 
         public enum WeaveTypes

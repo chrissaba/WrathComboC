@@ -7,7 +7,6 @@ using ECommons.GameFunctions;
 using ECommons.GameHelpers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
-using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using FFXIVClientStructs.FFXIV.Common.Component.BGCollision;
 using ImGuiNET;
@@ -24,25 +23,22 @@ namespace WrathCombo.CustomComboNS.Functions
 {
     internal abstract partial class CustomComboFunctions
     {
-        private static Dictionary<uint, bool> NPCPositionals = new Dictionary<uint, bool>();
         /// <summary> Gets the current target or null. </summary>
         public static IGameObject? CurrentTarget => Svc.Targets.Target;
 
         /// <summary> Find if the player has a target. </summary>
-        /// <returns> A value indicating whether the player has a target. </returns>
         public static bool HasTarget() => CurrentTarget is not null;
 
         /// <summary> Gets the distance from the target. </summary>
-        /// <returns> Double representing the distance from the target. </returns>
         public static float GetTargetDistance(IGameObject? optionalTarget = null, IGameObject? source = null)
         {
             if (LocalPlayer is null)
                 return 0;
 
-            IGameObject? chara = optionalTarget != null ? optionalTarget : CurrentTarget != null ? CurrentTarget : null;
+            IGameObject? chara = optionalTarget ?? CurrentTarget;
             if (chara is null) return 0;
 
-            IGameObject? sourceChara = source != null ? source : LocalPlayer;
+            IGameObject? sourceChara = source ?? LocalPlayer;
 
             if (chara.GameObjectId == sourceChara.GameObjectId)
                 return 0;
@@ -58,19 +54,18 @@ namespace WrathCombo.CustomComboNS.Functions
             if (LocalPlayer is null)
                 return 0;
 
-            IGameObject? chara = target != null ? target : CurrentTarget != null ? CurrentTarget : null;
+            IGameObject? chara = target ?? CurrentTarget;
             if (chara is null) return 0;
 
-            IGameObject? sourceChara = source != null ? source : LocalPlayer;
+            IGameObject? sourceChara = source ?? LocalPlayer;
 
             if (chara.GameObjectId == sourceChara.GameObjectId)
                 return 0;
 
-            return Math.Max(0, Math.Abs(chara.Position.Y - sourceChara.Position.Y));
+            return Math.Abs(chara.Position.Y - sourceChara.Position.Y);
         }
 
         /// <summary> Gets a value indicating whether you are in melee range from the current target. </summary>
-        /// <returns> Bool indicating whether you are in melee range. </returns>
         public static bool InMeleeRange()
         {
             if (Svc.Targets.Target == null)
@@ -78,110 +73,68 @@ namespace WrathCombo.CustomComboNS.Functions
 
             float distance = GetTargetDistance();
 
-            if (distance == 0)
-                return true;
-
-            if (distance > 3.0 + Service.Configuration.MeleeOffset)
-                return false;
-
-            return true;
+            return distance <= 3.0 + Service.Configuration.MeleeOffset;
         }
 
         /// <summary> Gets a value indicating target's HP Percent. CurrentTarget is default unless specified </summary>
-        /// <returns> Double indicating percentage. </returns>
         public static float GetTargetHPPercent(IGameObject? OurTarget = null, bool includeShield = false)
         {
-            if (OurTarget is null)
-            {
-                OurTarget = CurrentTarget; // Fallback to CurrentTarget
-                if (OurTarget is null)
-                    return 0;
-            }
+            OurTarget ??= CurrentTarget;
+            if (OurTarget is not IBattleChara chara)
+                return 0;
 
-            if (OurTarget is IBattleChara chara)
-            {
-                float percent = (float)chara.CurrentHp / chara.MaxHp * 100f;
-                if (includeShield) percent += chara.ShieldPercentage;
-                return Math.Clamp(percent, 0f, 100f);
-            }
-            else return 0;
+            float percent = (float)chara.CurrentHp / chara.MaxHp * 100f;
+            if (includeShield) percent += chara.ShieldPercentage;
+            return Math.Clamp(percent, 0f, 100f);
         }
 
-        public static float EnemyHealthMaxHp()
-        {
-            if (CurrentTarget is null)
-                return 0;
-            if (CurrentTarget is not IBattleChara chara)
-                return 0;
+        public static float EnemyHealthMaxHp() => CurrentTarget is IBattleChara chara ? chara.MaxHp : 0;
 
-            return chara.MaxHp;
-        }
+        public static float EnemyHealthCurrentHp() => CurrentTarget is IBattleChara chara ? chara.CurrentHp : 0;
 
-        public static float EnemyHealthCurrentHp()
-        {
-            if (CurrentTarget is null)
-                return 0;
-            if (CurrentTarget is not IBattleChara chara)
-                return 0;
-
-            return chara.CurrentHp;
-        }
-
-        public static float PlayerHealthPercentageHp() => (float)LocalPlayer.CurrentHp / LocalPlayer.MaxHp * 100;
+        public static float PlayerHealthPercentageHp() => LocalPlayer is { } player ? player.CurrentHp * 100f / player.MaxHp : 0f;
 
         public static bool HasBattleTarget() => CurrentTarget is not null && CurrentTarget.IsHostile();
 
         /// <summary> Checks if the player is being targeted by a hostile target. </summary>
-        public static bool IsPlayerTargeted() => Svc.Objects.Any(x => x.IsHostile() && x.IsTargetable && x.TargetObjectId == LocalPlayer.GameObjectId);
+        public static bool IsPlayerTargeted() => Svc.Objects.Any(x => x.IsHostile() && x.IsTargetable && x.TargetObjectId == LocalPlayer?.GameObjectId);
 
         public static bool HasFriendlyTarget(IGameObject? OurTarget = null)
         {
+            OurTarget ??= CurrentTarget;
             if (OurTarget is null)
-            {
-                //Fallback to CurrentTarget
-                OurTarget = CurrentTarget;
-                if (OurTarget is null)
-                    return false;
-            }
+                return false;
 
-            //Humans and Trusts
-            if (OurTarget.ObjectKind is ObjectKind.Player)
-                return true;
-            //AI
-            if (OurTarget is IBattleNpc) return (OurTarget as IBattleNpc).BattleNpcKind is not BattleNpcSubKind.Enemy and not (BattleNpcSubKind)1;
-            return false;
+            return OurTarget.ObjectKind switch
+            {
+                ObjectKind.Player => true,
+                _ when OurTarget is IBattleNpc npc => npc.BattleNpcKind is not BattleNpcSubKind.Enemy and not (BattleNpcSubKind)1,
+                _ => false
+            };
         }
 
-        /// <summary> Grabs healable target. Checks Soft Target then Hard Target. 
-        /// If Party UI Mouseover is enabled, find the target and return that. Else return the player. </summary>
-        /// <param name="checkMOPartyUI">Checks for a mouseover target.</param>
-        /// <param name="restrictToMouseover">Forces only the mouseover target, may return null.</param>
-        /// <returns> IGameObject of a player target. </returns>
-        public static unsafe IGameObject? GetHealTarget(bool checkMOPartyUI = false, bool restrictToMouseover = false)
+        /// <summary> Grabs healable target. 
+        /// Party UI Mouseover (optional) -> Soft Target -> Hard Target -> Player
+        /// </summary>
+        public static IGameObject GetHealTarget(bool checkMOPartyUI = false)
         {
-            IGameObject? healTarget = null;
             ITargetManager tm = Svc.Targets;
 
-            if (HasFriendlyTarget(tm.SoftTarget)) healTarget = tm.SoftTarget;
-            if (healTarget is null && HasFriendlyTarget(CurrentTarget) && !restrictToMouseover) healTarget = CurrentTarget;
-            //if (checkMO && HasFriendlyTarget(tm.MouseOverTarget)) healTarget = tm.MouseOverTarget;
-            if (checkMOPartyUI)
-            {
-                GameObject* t = Framework.Instance()->GetUIModule()->GetPronounModule()->UiMouseOverTarget;
-                if (t != null && t->GetGameObjectId().ObjectId != 0)
-                {
-                    IGameObject? uiTarget = Svc.Objects.Where(x => x.GameObjectId == t->GetGameObjectId().ObjectId).FirstOrDefault();
-                    if (uiTarget != null && HasFriendlyTarget(uiTarget)) healTarget = uiTarget;
+            // Check optional mouseover party UI target first
+            if (checkMOPartyUI && PartyUITargeting.UiMouseOverTarget is IGameObject uiTarget)
+                return uiTarget;
 
-                    if (restrictToMouseover)
-                        return healTarget;
-                }
+            // Check soft target
+            // Null checks to make sure HasFriendlyTarget doesn't use it's own failback
+            if (tm.SoftTarget != null && HasFriendlyTarget(tm.SoftTarget))
+                return tm.SoftTarget;
 
-                if (restrictToMouseover)
-                    return healTarget;
-            }
-            healTarget ??= LocalPlayer;
-            return healTarget;
+            // Check current target if not restricted to mouseover
+            if (tm.Target != null && HasFriendlyTarget(tm.Target))
+                return tm.Target;
+
+            // Default to local player
+            return LocalPlayer!;
         }
 
         /// <summary>
@@ -257,82 +210,35 @@ namespace WrathCombo.CustomComboNS.Functions
 
         public static bool TargetNeedsPositionals()
         {
-            if (!HasBattleTarget()) return false;
-            if (TargetHasEffectAny(3808)) return false; // Directional Disregard Effect (Patch 7.01)
-            if (!NPCPositionals.ContainsKey(CurrentTarget.DataId))
+            if (CurrentTarget is not IBattleChara target || HasStatusEffect(3808, target, true))
+                return false;
+
+            return Svc.Data.GetExcelSheet<BNpcBase>().TryGetRow(target.DataId, out var dataRow) && !dataRow.IsOmnidirectional;
+        }
+
+        public static IGameObject? GetTarget(TargetType target)
+        {
+            return target switch
             {
-                if (Svc.Data.GetExcelSheet<BNpcBase>().TryGetFirst(x => x.RowId == CurrentTarget.DataId, out var bnpc))
-                    NPCPositionals[CurrentTarget.DataId] = bnpc.IsOmnidirectional;
-            }
-            return !NPCPositionals[CurrentTarget.DataId];
-        }
-
-        /// <summary> Attempts to target the given party member </summary>
-        /// <param name="target"></param>
-        protected static unsafe void TargetObject(TargetType target)
-        {
-            GameObject* t = GetTarget(target);
-            if (t == null) return;
-            ulong o = PartyTargetingService.GetObjectID(t);
-            IGameObject? p = Svc.Objects.Where(x => x.GameObjectId == o).First();
-
-            if (IsInRange(p)) SetTarget(p);
-        }
-
-        public static void TargetObject(IGameObject? target)
-        {
-            if (IsInRange(target)) SetTarget(target);
-        }
-
-        public static unsafe GameObject* GetTarget(TargetType target)
-        {
-            IGameObject? o = null;
-
-            switch (target)
-            {
-                case TargetType.Target:
-                    o = Svc.Targets.Target;
-                    break;
-                case TargetType.SoftTarget:
-                    o = Svc.Targets.SoftTarget;
-                    break;
-                case TargetType.FocusTarget:
-                    o = Svc.Targets.FocusTarget;
-                    break;
-                case TargetType.UITarget:
-                    return PartyTargetingService.UITarget;
-                case TargetType.FieldTarget:
-                    o = Svc.Targets.MouseOverTarget;
-                    break;
-                case TargetType.TargetsTarget when Svc.Targets.Target is { TargetObjectId: not 0xE0000000 }:
-                    o = Svc.Targets.Target.TargetObject;
-                    break;
-                case TargetType.Self:
-                    o = Svc.ClientState.LocalPlayer;
-                    break;
-                case TargetType.LastTarget:
-                    return PartyTargetingService.GetGameObjectFromPronounID(1006);
-                case TargetType.LastEnemy:
-                    return PartyTargetingService.GetGameObjectFromPronounID(1084);
-                case TargetType.LastAttacker:
-                    return PartyTargetingService.GetGameObjectFromPronounID(1008);
-                case TargetType.P2:
-                    return PartyTargetingService.GetGameObjectFromPronounID(44);
-                case TargetType.P3:
-                    return PartyTargetingService.GetGameObjectFromPronounID(45);
-                case TargetType.P4:
-                    return PartyTargetingService.GetGameObjectFromPronounID(46);
-                case TargetType.P5:
-                    return PartyTargetingService.GetGameObjectFromPronounID(47);
-                case TargetType.P6:
-                    return PartyTargetingService.GetGameObjectFromPronounID(48);
-                case TargetType.P7:
-                    return PartyTargetingService.GetGameObjectFromPronounID(49);
-                case TargetType.P8:
-                    return PartyTargetingService.GetGameObjectFromPronounID(50);
-            }
-
-            return o != null ? (GameObject*)o.Address : null;
+                TargetType.Target => Svc.Targets.Target,
+                TargetType.SoftTarget => Svc.Targets.SoftTarget,
+                TargetType.FocusTarget => Svc.Targets.FocusTarget,
+                TargetType.UiMouseOverTarget => PartyUITargeting.UiMouseOverTarget,
+                TargetType.FieldTarget => Svc.Targets.MouseOverTarget,
+                TargetType.TargetsTarget when Svc.Targets.Target is { TargetObjectId: not 0xE0000000 } => Svc.Targets.Target.TargetObject,
+                TargetType.Self => Svc.ClientState.LocalPlayer,
+                TargetType.LastTarget => PartyUITargeting.GetIGameObjectFromPronounID(1006),
+                TargetType.LastEnemy => PartyUITargeting.GetIGameObjectFromPronounID(1084),
+                TargetType.LastAttacker => PartyUITargeting.GetIGameObjectFromPronounID(1008),
+                TargetType.P2 => PartyUITargeting.GetPartySlot(2),
+                TargetType.P3 => PartyUITargeting.GetPartySlot(3),
+                TargetType.P4 => PartyUITargeting.GetPartySlot(4),
+                TargetType.P5 => PartyUITargeting.GetPartySlot(5),
+                TargetType.P6 => PartyUITargeting.GetPartySlot(6),
+                TargetType.P7 => PartyUITargeting.GetPartySlot(7),
+                TargetType.P8 => PartyUITargeting.GetPartySlot(8),
+                _ => null,
+            };
         }
 
         public enum TargetType
@@ -340,7 +246,7 @@ namespace WrathCombo.CustomComboNS.Functions
             Target,
             SoftTarget,
             FocusTarget,
-            UITarget,
+            UiMouseOverTarget,
             FieldTarget,
             TargetsTarget,
             Self,
@@ -356,125 +262,56 @@ namespace WrathCombo.CustomComboNS.Functions
             P8
         }
 
-        /// <summary>
-        /// Get angle to target.
-        /// </summary>
-        /// <returns>Angle relative to target</returns>
-        public static float AngleToTarget()
+        public enum AttackAngle
         {
-            if (CurrentTarget is null || LocalPlayer is null)
-                return 0;
-            if (CurrentTarget is not IBattleChara || CurrentTarget.ObjectKind != ObjectKind.BattleNpc)
-                return 0;
-
-            float angle = PositionalMath.AngleXZ(CurrentTarget.Position, LocalPlayer.Position) - CurrentTarget.Rotation;
-
-            double regionDegrees = PositionalMath.Degrees(angle);
-            if (regionDegrees < 0)
-            {
-                regionDegrees = 360 + regionDegrees;
-            }
-
-            if (regionDegrees is >= 45 and <= 135)
-            {
-                return 1;
-            }
-            
-            if (regionDegrees is >= 135 and <= 225)
-            {
-                return 2;
-            }
-            
-            if (regionDegrees is >= 225 and <= 315)
-            {
-                return 3;
-            }
-            
-            if (regionDegrees is >= 315 or <= 45)
-            {
-                return 4;
-            }
-            return 0;
+            Front,
+            Flank,
+            Rear,
+            Unknown
         }
 
-        /// <summary>
-        /// Is player on target's rear.
-        /// </summary>
-        /// <returns>True or false.</returns>
-        public static bool OnTargetsRear()
+        /// <summary> Gets the player's position relative to the target. </summary>
+        /// <returns> Front, Flank, Rear or Unknown as AttackAngle type. </returns>
+        public static AttackAngle AngleToTarget()
         {
-            if (CurrentTarget is null || LocalPlayer is null)
-                return false;
-            if (CurrentTarget is not IBattleChara || CurrentTarget.ObjectKind != ObjectKind.BattleNpc)
-                return false;
+            if (LocalPlayer is not { } player || CurrentTarget is not IBattleChara target || target.ObjectKind != ObjectKind.BattleNpc) return AttackAngle.Unknown;
 
-            float angle = PositionalMath.AngleXZ(CurrentTarget.Position, LocalPlayer.Position) - CurrentTarget.Rotation;
+            float angle = PositionalMath.AngleXZ(target.Position, player.Position) - target.Rotation;
+            float regionDegrees = PositionalMath.ToDegrees(angle) + (angle < 0f ? 360f : 0f);
 
-            double regionDegrees = PositionalMath.Degrees(angle);
-            if (regionDegrees < 0)
+            return regionDegrees switch
             {
-                regionDegrees = 360 + regionDegrees;
-            }
-
-            if (regionDegrees is >= 135 and <= 225)
-            {
-                return true;
-            }
-            
-            return false;
+                >= 315f or <= 45f       => AttackAngle.Front,   // 0° ± 45°
+                >= 45f and <= 135f      => AttackAngle.Flank,   // 90° ± 45°
+                >= 135f and <= 225f     => AttackAngle.Rear,    // 180° ± 45°
+                >= 225f and <= 315f     => AttackAngle.Flank,   // 270° ± 45°
+                _                       => AttackAngle.Unknown
+            };
         }
 
-        /// <summary>
-        /// Is player on target's flank.
-        /// </summary>
-        /// <returns>True or false.</returns>
-        public static bool OnTargetsFlank()
-        {
-            if (CurrentTarget is null || LocalPlayer is null)
-                return false;
-            if (CurrentTarget is not IBattleChara || CurrentTarget.ObjectKind != ObjectKind.BattleNpc)
-                return false;
+        /// <summary> Is player on target's rear. </summary>
+        /// <returns> True or false. </returns>
+        public static bool OnTargetsRear() => AngleToTarget() is AttackAngle.Rear;
 
+        /// <summary> Is player on target's flank. </summary>
+        /// <returns> True or false. </returns>
+        public static bool OnTargetsFlank() => AngleToTarget() is AttackAngle.Flank;
 
-            float angle = PositionalMath.AngleXZ(CurrentTarget.Position, LocalPlayer.Position) - CurrentTarget.Rotation;
+        /// <summary> Is player on target's front. </summary>
+        /// <returns> True or false. </returns>
+        public static bool OnTargetsFront() => AngleToTarget() is AttackAngle.Front;
 
-            double regionDegrees = PositionalMath.Degrees(angle);
-            if (regionDegrees < 0)
-            {
-                regionDegrees = 360 + regionDegrees;
-            }
-
-            // left flank
-            if (regionDegrees is >= 45 and <= 135)
-            {
-                return true;
-            }
-            
-            // right flank
-            if (regionDegrees is >= 225 and <= 315)
-            {
-                return true;
-            }
-            return false;
-        }
-
-        // the following is all lifted from the excellent Resonant plugin
+        /// <summary> Performs positional calculations. Based on the excellent Resonant plugin. </summary>
         internal static class PositionalMath
         {
-            internal static float Radians(float degrees)
-            {
-                return (float)Math.PI * degrees / 180.0f;
-            }
+            public const float DegreesToRadians = MathF.PI / 180f;
+            public const float RadiansToDegrees = 180f / MathF.PI;
 
-            internal static double Degrees(float radians)
-            {
-                return (180 / Math.PI) * radians;
-            }
+            public static float ToRadians(float degrees) => degrees * DegreesToRadians;
 
-            internal static float AngleXZ(Vector3 a, Vector3 b)
-            {
-                return (float)Math.Atan2(b.X - a.X, b.Z - a.Z);
-            }
+            public static float ToDegrees(float radians) => radians * RadiansToDegrees;
+
+            public static float AngleXZ(Vector3 a, Vector3 b) => MathF.Atan2(b.X - a.X, b.Z - a.Z);
         }
 
         internal static bool OutOfRange(uint actionID, IGameObject target) => ActionWatching.OutOfRange(actionID, Svc.ClientState.LocalPlayer!, target);
@@ -687,8 +524,7 @@ namespace WrathCombo.CustomComboNS.Functions
 
         internal static unsafe bool IsQuestMob(IGameObject target) => target.Struct()->NamePlateIconId is 71204 or 71144 or 71224 or 71344;
 
-        private static bool IsBoss(IGameObject? target) =>
-            target != null && Svc.Data.GetExcelSheet<BNpcBase>().HasRow(target.DataId) && Svc.Data.GetExcelSheet<BNpcBase>().GetRow(target.DataId).Rank is 2 or 6;
+        private static bool IsBoss(IGameObject? target) => target is not null && Svc.Data.GetExcelSheet<BNpcBase>().TryGetRow(target.DataId, out var dataRow) && dataRow.Rank is 2 or 6;
 
         internal static bool TargetIsBoss() => IsBoss(LocalPlayer.TargetObject);
 

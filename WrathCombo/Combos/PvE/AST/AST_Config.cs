@@ -32,6 +32,7 @@ internal partial class AST
 
         public static UserBool
             AST_QuickTarget_SkipDamageDown = new("AST_QuickTarget_SkipDamageDown"),
+            AST_QuickTarget_Prio = new("AST_QuickTarget_Prio"),
             AST_QuickTarget_SkipRezWeakness = new("AST_QuickTarget_SkipRezWeakness"),
             AST_ST_SimpleHeals_Adv = new("AST_ST_SimpleHeals_Adv"),
             AST_ST_SimpleHeals_UIMouseOver = new("AST_ST_SimpleHeals_UIMouseOver"),
@@ -47,8 +48,7 @@ internal partial class AST
             AST_AoE_SimpleHeals_Opposition = new("AST_AoE_SimpleHeals_Opposition"),
             AST_AoE_SimpleHeals_Horoscope = new("AST_AoE_SimpleHeals_Horoscope"),
             AST_ST_DPS_OverwriteCards = new("AST_ST_DPS_OverwriteCards"),
-            AST_AOE_DPS_OverwriteCards = new("AST_AOE_DPS_OverwriteCards"),
-            AST_ST_DPS_CombustUptime_Adv = new("AST_ST_DPS_CombustUptime_Adv");
+            AST_AOE_DPS_OverwriteCards = new("AST_AOE_DPS_OverwriteCards");
         public static UserFloat
             AST_ST_DPS_CombustUptime_Threshold = new("AST_ST_DPS_CombustUptime_Threshold");
 
@@ -196,6 +196,7 @@ internal partial class AST
                     ImGui.Spacing();
                     DrawAdditionalBoolChoice(AST_QuickTarget_SkipDamageDown, $"Skip targets with a {GetStatusName(62)} debuff", "");
                     DrawAdditionalBoolChoice(AST_QuickTarget_SkipRezWeakness, $"Skip targets with a {GetStatusName(43)} or {GetStatusName(44)} debuff", "");
+                    DrawAdditionalBoolChoice(AST_QuickTarget_Prio, $"Uses Fixed Card Priorities (Based on the Balance)", "");
                     break;
 
                 case CustomComboPreset.AST_DPS_AutoDraw:

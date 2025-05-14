@@ -5,43 +5,216 @@ using System.Collections.Generic;
 using System.Linq;
 using WrathCombo.CustomComboNS;
 using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Data;
+using static WrathCombo.Combos.PvE.MCH.Config;
 using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
+using static WrathCombo.Data.ActionWatching;
 namespace WrathCombo.Combos.PvE;
 
 internal partial class MCH
 {
     internal static MCHOpenerMaxLevel Lvl100Standard = new();
     internal static MCHOpenerLvl90EarlyTools Lvl90EarlyTools = new();
-    internal static MCHGauge Gauge = GetJobGauge<MCHGauge>();
 
-    internal static int BSUsed => ActionWatching.CombatActions.Count(x => x == BarrelStabilizer);
+    internal static int BSUsed => CombatActions.Count(x => x == BarrelStabilizer);
+
+    internal static bool UseGaussRound => GetRemainingCharges(OriginalHook(GaussRound)) >= GetRemainingCharges(OriginalHook(Ricochet));
+
+    internal static bool UseRicochet => GetRemainingCharges(OriginalHook(Ricochet)) > GetRemainingCharges(OriginalHook(GaussRound));
+
+    internal static bool HasNotWeaved =>
+        GetAttackType(LastAction) !=
+        ActionAttackType.Ability;
+
+    internal static bool UseQueen()
+    {
+        if (!HasDoubleWeaved() && !HasStatusEffect(Buffs.Wildfire) &&
+            !JustUsed(OriginalHook(Heatblast)) && ActionReady(RookAutoturret) &&
+            !RobotActive && Battery >= 50)
+        {
+            if ((MCH_ST_Adv_Turret_SubOption == 0 ||
+                 MCH_ST_Adv_Turret_SubOption == 1 && InBossEncounter() ||
+                 IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) && InBossEncounter()) &&
+                (GetCooldownRemainingTime(Wildfire) > GCD || !LevelChecked(Wildfire)))
+            {
+                if (LevelChecked(BarrelStabilizer))
+                {
+                    //1min
+                    if (BSUsed == 1 && Battery >= 90)
+                        return true;
+
+                    //even mins
+                    if (BSUsed >= 2 && Battery == 100)
+                        return true;
+
+                    //odd mins 1st queen
+                    if (BSUsed >= 2 && Battery is 50 && LastSummonBattery is 100)
+                        return true;
+
+                    //odd mins 2nd queen
+                    if ((BSUsed % 3 is 2 && Battery >= 60 ||
+                         BSUsed % 3 is 0 && Battery >= 70 ||
+                         BSUsed % 3 is 1 && Battery >= 80) && LastSummonBattery is 50)
+                        return true;
+                }
+
+                if (!LevelChecked(BarrelStabilizer))
+                    return true;
+            }
+
+            if (IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) && !InBossEncounter() && Battery is 100 ||
+                MCH_ST_Adv_Turret_SubOption == 1 && !InBossEncounter() && Battery >= MCH_ST_TurretUsage)
+                return true;
+        }
+
+        return false;
+    }
+
+    internal static bool Reassembled()
+    {
+        if (!JustUsed(OriginalHook(Heatblast)) && !HasStatusEffect(Buffs.Reassembled) &&
+            ActionReady(Reassemble) && !JustUsed(OriginalHook(Heatblast)))
+        {
+            if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) && !InBossEncounter() ||
+                 IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && MCH_ST_Reassembled[0] &&
+                 (MCH_ST_Adv_Excavator_SubOption == 1 && !InBossEncounter() ||
+                  IsNotEnabled(CustomComboPreset.MCH_ST_Adv_TurretQueen))) &&
+                LevelChecked(Excavator) && HasStatusEffect(Buffs.ExcavatorReady))
+                return true;
+
+            if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) && InBossEncounter() ||
+                 IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && MCH_ST_Reassembled[0] &&
+                 IsEnabled(CustomComboPreset.MCH_ST_Adv_TurretQueen) &&
+                 (MCH_ST_Adv_Excavator_SubOption == 0 ||
+                  MCH_ST_Adv_Excavator_SubOption == 1 && InBossEncounter())) &&
+                LevelChecked(Excavator) && HasStatusEffect(Buffs.ExcavatorReady) &&
+                (BSUsed is 1 ||
+                 BSUsed % 3 is 2 && Battery <= 40 ||
+                 BSUsed % 3 is 0 && Battery <= 50 ||
+                 BSUsed % 3 is 1 && Battery <= 60 ||
+                 GetStatusEffectRemainingTime(Buffs.ExcavatorReady) <= 6))
+                return true;
+
+            if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) ||
+                 IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && MCH_ST_Reassembled[1]) &&
+                !LevelChecked(Excavator) && ActionReady(Chainsaw) && !MaxBattery)
+                return true;
+
+            if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) ||
+                 IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && MCH_ST_Reassembled[2]) &&
+                LevelChecked(AirAnchor) && IsOffCooldown(AirAnchor) && !MaxBattery)
+                return true;
+
+            if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) ||
+                 IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && MCH_ST_Reassembled[3]) &&
+                LevelChecked(Drill) &&
+                (!LevelChecked(AirAnchor) && MCH_ST_Reassembled[2] || !MCH_ST_Reassembled[2]) &&
+                ActionReady(Drill))
+                return true;
+        }
+
+        return false;
+    }
+
+    internal static bool Tools(ref uint actionID)
+    {
+        if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) && !InBossEncounter() ||
+             IsEnabled(CustomComboPreset.MCH_ST_Adv_Excavator) && ReassembledExcavatorST &&
+             (MCH_ST_Adv_Excavator_SubOption == 1 && !InBossEncounter() ||
+              IsNotEnabled(CustomComboPreset.MCH_ST_Adv_TurretQueen))) &&
+            LevelChecked(Excavator) && HasStatusEffect(Buffs.ExcavatorReady))
+        {
+            actionID = Excavator;
+
+            return true;
+        }
+
+        if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) && InBossEncounter() ||
+             IsEnabled(CustomComboPreset.MCH_ST_Adv_Excavator) && ReassembledExcavatorST &&
+             IsEnabled(CustomComboPreset.MCH_ST_Adv_TurretQueen) &&
+             (MCH_ST_Adv_Excavator_SubOption == 0 ||
+              MCH_ST_Adv_Excavator_SubOption == 1 && InBossEncounter())) &&
+            LevelChecked(Excavator) && HasStatusEffect(Buffs.ExcavatorReady) &&
+            (BSUsed is 1 ||
+             BSUsed % 3 is 2 && Battery <= 40 ||
+             BSUsed % 3 is 0 && Battery <= 50 ||
+             BSUsed % 3 is 1 && Battery <= 60 ||
+             GetStatusEffectRemainingTime(Buffs.ExcavatorReady) <= 6))
+        {
+            actionID = Excavator;
+
+            return true;
+        }
+
+        if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) ||
+             IsEnabled(CustomComboPreset.MCH_ST_Adv_Chainsaw) && ReassembledChainsawST) &&
+            !MaxBattery && !HasStatusEffect(Buffs.ExcavatorReady) && ActionReady(Chainsaw))
+        {
+            actionID = Chainsaw;
+
+            return true;
+        }
+
+        if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) ||
+             IsEnabled(CustomComboPreset.MCH_ST_Adv_AirAnchor) && ReassembledAnchorST) &&
+            !MaxBattery && LevelChecked(AirAnchor) && IsOffCooldown(AirAnchor))
+        {
+            actionID = AirAnchor;
+
+            return true;
+        }
+
+        if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) ||
+             IsEnabled(CustomComboPreset.MCH_ST_Adv_Drill) && ReassembledDrillST) &&
+            !JustUsed(Drill) &&
+            ActionReady(Drill) && GetCooldownRemainingTime(Wildfire) is >= 20 or <= 10)
+        {
+            actionID = Drill;
+
+            return true;
+        }
+
+        if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) ||
+             IsEnabled(CustomComboPreset.MCH_ST_Adv_AirAnchor)) &&
+            LevelChecked(HotShot) && !LevelChecked(AirAnchor) && !MaxBattery &&
+            ActionReady(HotShot))
+        {
+            actionID = HotShot;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    #region Reassembled
 
     internal static bool ReassembledExcavatorST =>
-        IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && Config.MCH_ST_Reassembled[0] && (HasEffect(Buffs.Reassembled) || !HasEffect(Buffs.Reassembled)) ||
-        IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && !Config.MCH_ST_Reassembled[0] && !HasEffect(Buffs.Reassembled) ||
-        !HasEffect(Buffs.Reassembled) && GetRemainingCharges(Reassemble) <= Config.MCH_ST_ReassemblePool ||
+        IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && MCH_ST_Reassembled[0] && (HasStatusEffect(Buffs.Reassembled) || !HasStatusEffect(Buffs.Reassembled)) ||
+        IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && !MCH_ST_Reassembled[0] && !HasStatusEffect(Buffs.Reassembled) ||
+        !HasStatusEffect(Buffs.Reassembled) && GetRemainingCharges(Reassemble) <= MCH_ST_ReassemblePool ||
         !IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble);
 
     internal static bool ReassembledChainsawST =>
-        IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && Config.MCH_ST_Reassembled[1] && (HasEffect(Buffs.Reassembled) || !HasEffect(Buffs.Reassembled)) ||
-        IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && !Config.MCH_ST_Reassembled[1] && !HasEffect(Buffs.Reassembled) ||
-        !HasEffect(Buffs.Reassembled) && GetRemainingCharges(Reassemble) <= Config.MCH_ST_ReassemblePool ||
+        IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && MCH_ST_Reassembled[1] && (HasStatusEffect(Buffs.Reassembled) || !HasStatusEffect(Buffs.Reassembled)) ||
+        IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && !MCH_ST_Reassembled[1] && !HasStatusEffect(Buffs.Reassembled) ||
+        !HasStatusEffect(Buffs.Reassembled) && GetRemainingCharges(Reassemble) <= MCH_ST_ReassemblePool ||
         !IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble);
 
     internal static bool ReassembledAnchorST =>
-        IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && Config.MCH_ST_Reassembled[2] && (HasEffect(Buffs.Reassembled) || !HasEffect(Buffs.Reassembled)) ||
-        IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && !Config.MCH_ST_Reassembled[2] && !HasEffect(Buffs.Reassembled) ||
-        !HasEffect(Buffs.Reassembled) && GetRemainingCharges(Reassemble) <= Config.MCH_ST_ReassemblePool ||
+        IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && MCH_ST_Reassembled[2] && (HasStatusEffect(Buffs.Reassembled) || !HasStatusEffect(Buffs.Reassembled)) ||
+        IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && !MCH_ST_Reassembled[2] && !HasStatusEffect(Buffs.Reassembled) ||
+        !HasStatusEffect(Buffs.Reassembled) && GetRemainingCharges(Reassemble) <= MCH_ST_ReassemblePool ||
         !IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble);
 
     internal static bool ReassembledDrillST =>
-        IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && Config.MCH_ST_Reassembled[3] && (HasEffect(Buffs.Reassembled) || !HasEffect(Buffs.Reassembled)) ||
-        IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && !Config.MCH_ST_Reassembled[3] && !HasEffect(Buffs.Reassembled) ||
-        !HasEffect(Buffs.Reassembled) && GetRemainingCharges(Reassemble) <= Config.MCH_ST_ReassemblePool ||
+        IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && MCH_ST_Reassembled[3] && (HasStatusEffect(Buffs.Reassembled) || !HasStatusEffect(Buffs.Reassembled)) ||
+        IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && !MCH_ST_Reassembled[3] && !HasStatusEffect(Buffs.Reassembled) ||
+        !HasStatusEffect(Buffs.Reassembled) && GetRemainingCharges(Reassemble) <= MCH_ST_ReassemblePool ||
         !IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble);
 
-    internal static float GCD => GetCooldown(OriginalHook(SplitShot)).CooldownTotal;
+    #endregion
+
+    #region Cooldowns
 
     internal static bool DrillCD =>
         !LevelChecked(Drill) ||
@@ -56,11 +229,22 @@ internal partial class MCH
         !LevelChecked(Chainsaw) ||
         LevelChecked(Chainsaw) && GetCooldownRemainingTime(Chainsaw) >= 9;
 
-    internal static bool Battery => Gauge.Battery >= 100;
+    #endregion
 
-    internal static bool HasNotWeaved =>
-        ActionWatching.GetAttackType(ActionWatching.LastAction) !=
-        ActionWatching.ActionAttackType.Ability;
+    #region Combos
+
+    internal static float GCD => GetCooldown(OriginalHook(SplitShot)).CooldownTotal;
+
+    internal static unsafe bool IsComboExpiring(float times)
+    {
+        float gcd = GCD * times;
+
+        return ActionManager.Instance()->Combo.Timer != 0 && ActionManager.Instance()->Combo.Timer < gcd;
+    }
+
+  #endregion
+
+    #region Openers
 
     internal static WrathOpener Opener()
     {
@@ -72,188 +256,6 @@ internal partial class MCH
 
         return WrathOpener.Dummy;
     }
-
-    internal static unsafe bool IsComboExpiring(float times)
-    {
-        float gcd = GetCooldown(OriginalHook(SplitShot)).CooldownTotal * times;
-
-        return ActionManager.Instance()->Combo.Timer != 0 && ActionManager.Instance()->Combo.Timer < gcd;
-    }
-
-    internal static bool UseQueen(MCHGauge gauge)
-    {
-        if (!ActionWatching.HasDoubleWeaved() && !HasEffect(Buffs.Wildfire) &&
-            !JustUsed(OriginalHook(Heatblast)) && ActionReady(RookAutoturret) &&
-            !gauge.IsRobotActive && gauge.Battery >= 50)
-        {
-            if ((Config.MCH_ST_Adv_Turret_SubOption == 0 ||
-                 Config.MCH_ST_Adv_Turret_SubOption == 1 && InBossEncounter() ||
-                 IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) && InBossEncounter()) &&
-                (GetCooldownRemainingTime(Wildfire) > GCD || !LevelChecked(Wildfire)))
-            {
-                if (LevelChecked(BarrelStabilizer))
-                {
-                    //1min
-                    if (BSUsed == 1 && gauge.Battery >= 90)
-                        return true;
-
-                    //even mins
-                    if (BSUsed >= 2 && gauge.Battery == 100)
-                        return true;
-
-                    //odd mins 1st queen
-                    if (BSUsed >= 2 && gauge.Battery is 50 && gauge.LastSummonBatteryPower is 100)
-                        return true;
-
-                    //odd mins 2nd queen
-                    if ((BSUsed % 3 is 2 && gauge.Battery >= 60 ||
-                         BSUsed % 3 is 0 && gauge.Battery >= 70 ||
-                         BSUsed % 3 is 1 && gauge.Battery >= 80) && gauge.LastSummonBatteryPower is 50)
-                        return true;
-                }
-
-                if (!LevelChecked(BarrelStabilizer))
-                    return true;
-            }
-
-            if (IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) && !InBossEncounter() && gauge.Battery is 100 ||
-                Config.MCH_ST_Adv_Turret_SubOption == 1 && !InBossEncounter() && gauge.Battery >= Config.MCH_ST_TurretUsage)
-                return true;
-        }
-
-        return false;
-    }
-
-    internal static bool Reassembled()
-    {
-        if (!JustUsed(OriginalHook(Heatblast)) && !HasEffect(Buffs.Reassembled) &&
-            ActionReady(Reassemble) && !JustUsed(OriginalHook(Heatblast)))
-        {
-            if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) && !InBossEncounter() ||
-                 IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && Config.MCH_ST_Reassembled[0] &&
-                 (Config.MCH_ST_Adv_Excavator_SubOption == 1 && !InBossEncounter() ||
-                  IsNotEnabled(CustomComboPreset.MCH_ST_Adv_TurretQueen))) &&
-                LevelChecked(Excavator) && HasEffect(Buffs.ExcavatorReady))
-                return true;
-
-            if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) && InBossEncounter() ||
-                 IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && Config.MCH_ST_Reassembled[0] &&
-                 IsEnabled(CustomComboPreset.MCH_ST_Adv_TurretQueen) &&
-                 (Config.MCH_ST_Adv_Excavator_SubOption == 0 ||
-                  Config.MCH_ST_Adv_Excavator_SubOption == 1 && InBossEncounter())) &&
-                LevelChecked(Excavator) && HasEffect(Buffs.ExcavatorReady) &&
-                (BSUsed is 1 ||
-                 BSUsed % 3 is 2 && Gauge.Battery <= 40 ||
-                 BSUsed % 3 is 0 && Gauge.Battery <= 50 ||
-                 BSUsed % 3 is 1 && Gauge.Battery <= 60 ||
-                 GetBuffRemainingTime(Buffs.ExcavatorReady) < 6))
-                return true;
-
-            if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) ||
-                 IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && Config.MCH_ST_Reassembled[1]) &&
-                LevelChecked(Chainsaw) && !LevelChecked(Excavator) &&
-                (GetCooldownRemainingTime(Chainsaw) <= GetCooldownRemainingTime(OriginalHook(SplitShot)) + 0.25 ||
-                 ActionReady(Chainsaw)) && !Battery)
-                return true;
-
-            if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) ||
-                 IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && Config.MCH_ST_Reassembled[2]) &&
-                LevelChecked(AirAnchor) &&
-                (GetCooldownRemainingTime(AirAnchor) <= GetCooldownRemainingTime(OriginalHook(SplitShot)) + 0.25 ||
-                 ActionReady(AirAnchor)) && !Battery)
-                return true;
-
-            if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) ||
-                 IsEnabled(CustomComboPreset.MCH_ST_Adv_Reassemble) && Config.MCH_ST_Reassembled[3]) &&
-                LevelChecked(Drill) &&
-                (!LevelChecked(AirAnchor) && Config.MCH_ST_Reassembled[2] || !Config.MCH_ST_Reassembled[2]) &&
-                (GetCooldownRemainingTime(Drill) <= GetCooldownRemainingTime(OriginalHook(SplitShot)) + 0.25 ||
-                 ActionReady(Drill)))
-                return true;
-        }
-
-        return false;
-    }
-
-    internal static bool Tools(ref uint actionID)
-    {
-        if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) && !InBossEncounter() ||
-             IsEnabled(CustomComboPreset.MCH_ST_Adv_Excavator) && ReassembledExcavatorST &&
-             (Config.MCH_ST_Adv_Excavator_SubOption == 1 && !InBossEncounter() ||
-              IsNotEnabled(CustomComboPreset.MCH_ST_Adv_TurretQueen))) &&
-            LevelChecked(Excavator) && HasEffect(Buffs.ExcavatorReady))
-        {
-            actionID = Excavator;
-
-            return true;
-        }
-
-        if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) && InBossEncounter() ||
-             IsEnabled(CustomComboPreset.MCH_ST_Adv_Excavator) && ReassembledExcavatorST &&
-             IsEnabled(CustomComboPreset.MCH_ST_Adv_TurretQueen) &&
-             (Config.MCH_ST_Adv_Excavator_SubOption == 0 ||
-              Config.MCH_ST_Adv_Excavator_SubOption == 1 && InBossEncounter())) &&
-            LevelChecked(Excavator) && HasEffect(Buffs.ExcavatorReady) &&
-            (BSUsed is 1 ||
-             BSUsed % 3 is 2 && Gauge.Battery <= 40 ||
-             BSUsed % 3 is 0 && Gauge.Battery <= 50 ||
-             BSUsed % 3 is 1 && Gauge.Battery <= 60 ||
-             GetBuffRemainingTime(Buffs.ExcavatorReady) < 6))
-        {
-            actionID = Excavator;
-
-            return true;
-        }
-
-        if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) ||
-             IsEnabled(CustomComboPreset.MCH_ST_Adv_Chainsaw) && ReassembledChainsawST) &&
-            LevelChecked(Chainsaw) && !Battery && !HasEffect(Buffs.ExcavatorReady) &&
-            (GetCooldownRemainingTime(Chainsaw) <= GetCooldownRemainingTime(OriginalHook(SplitShot)) + 0.25 ||
-             ActionReady(Chainsaw)))
-        {
-            actionID = Chainsaw;
-
-            return true;
-        }
-
-        if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) ||
-             IsEnabled(CustomComboPreset.MCH_ST_Adv_AirAnchor) && ReassembledAnchorST) &&
-            LevelChecked(AirAnchor) && !Battery &&
-            (GetCooldownRemainingTime(AirAnchor) <= GetCooldownRemainingTime(OriginalHook(SplitShot)) + 0.25 ||
-             ActionReady(AirAnchor)))
-        {
-            actionID = AirAnchor;
-
-            return true;
-        }
-
-        if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) ||
-             IsEnabled(CustomComboPreset.MCH_ST_Adv_Drill) && ReassembledDrillST) &&
-            LevelChecked(Drill) &&
-            !JustUsed(Drill) &&
-            (GetCooldownRemainingTime(Drill) <= GetCooldownRemainingTime(OriginalHook(SplitShot)) + 0.25 ||
-             ActionReady(Drill)) && GetCooldownRemainingTime(Wildfire) is >= 20 or <= 10)
-        {
-            actionID = Drill;
-
-            return true;
-        }
-
-        if ((IsEnabled(CustomComboPreset.MCH_ST_SimpleMode) ||
-             IsEnabled(CustomComboPreset.MCH_ST_Adv_AirAnchor)) &&
-            LevelChecked(HotShot) && !LevelChecked(AirAnchor) && !Battery &&
-            (GetCooldownRemainingTime(HotShot) <= GetCooldownRemainingTime(OriginalHook(SplitShot)) + 0.25 ||
-             ActionReady(HotShot)))
-        {
-            actionID = HotShot;
-
-            return true;
-        }
-
-        return false;
-    }
-
-    #region Openers
 
     internal class MCHOpenerMaxLevel : WrathOpener
     {
@@ -297,7 +299,7 @@ internal partial class MCH
             HeatedCleanShot
         ];
 
-        internal override UserData ContentCheckConfig => Config.MCH_Balance_Content;
+        internal override UserData ContentCheckConfig => MCH_Balance_Content;
 
         public override List<(int[] Steps, Func<int> HoldDelay)> PrepullDelays { get; set; } =
         [
@@ -352,7 +354,7 @@ internal partial class MCH
             Drill
         ];
 
-        internal override UserData ContentCheckConfig => Config.MCH_Balance_Content;
+        internal override UserData ContentCheckConfig => MCH_Balance_Content;
 
         public override List<(int[] Steps, Func<int> HoldDelay)> PrepullDelays { get; set; } =
         [
@@ -380,6 +382,24 @@ internal partial class MCH
             IsOffCooldown(Wildfire) &&
             IsOffCooldown(BarrelStabilizer);
     }
+
+    #endregion
+
+    #region Gauge
+
+    internal static MCHGauge Gauge = GetJobGauge<MCHGauge>();
+
+    internal static bool IsOverheated => Gauge.IsOverheated;
+
+    internal static bool RobotActive => Gauge.IsRobotActive;
+
+    internal static byte LastSummonBattery => Gauge.LastSummonBatteryPower;
+
+    internal static byte Heat => Gauge.Heat;
+
+    internal static byte Battery => Gauge.Battery;
+
+    internal static bool MaxBattery => Battery >= 100;
 
     #endregion
 

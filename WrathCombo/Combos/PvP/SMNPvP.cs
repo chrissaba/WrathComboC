@@ -93,7 +93,7 @@ namespace WrathCombo.Combos.PvP
                                 IsOffCooldown(RadiantAegis) && playerHP <= radiantThreshold)
                                 return RadiantAegis;
 
-                            if (IsEnabled(CustomComboPreset.SMNPvP_PhantomDart) && Role.CanPhantomDart() && GetTargetHPPercent() <= GetOptionValue(Config.SMNPvP_PhantomDartThreshold))
+                            if (IsEnabled(CustomComboPreset.SMNPvP_PhantomDart) && Role.CanPhantomDart() && GetTargetHPPercent() <= Config.SMNPvP_PhantomDartThreshold)
                                 return Role.PhantomDart;
                         }
                         // Phoenix & Bahamut bursts
@@ -103,7 +103,7 @@ namespace WrathCombo.Combos.PvP
                         if (IsEnabled(CustomComboPreset.SMNPvP_BurstMode_DeathFlare) && bahamutBurst && IsOffCooldown(DeathFlare))
                             return DeathFlare;
 
-                        if (IsEnabled(CustomComboPreset.SMNPvP_BurstMode_Necrotize) && GetRemainingCharges(Necrotize) > 0 && !HasEffect(Buffs.FurtherRuin))
+                        if (IsEnabled(CustomComboPreset.SMNPvP_BurstMode_Necrotize) && GetRemainingCharges(Necrotize) > 0 && !HasStatusEffect(Buffs.FurtherRuin))
                             return Necrotize;
                         
                         // Ifrit (check CrimsonCyclone conditions)

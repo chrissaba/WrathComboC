@@ -1,19 +1,18 @@
 ﻿#region
 
+using Dalamud.Game.ClientState.JobGauge.Types;
+using Dalamud.Game.ClientState.Objects.Types;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Dalamud.Game.ClientState.JobGauge.Types;
-using Dalamud.Game.ClientState.Objects.Types;
 using WrathCombo.AutoRotation;
-using WrathCombo.Combos.PvE.Content;
 using WrathCombo.CustomComboNS;
 using WrathCombo.CustomComboNS.Functions;
 using WrathCombo.Data;
 using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-using Preset = WrathCombo.Combos.CustomComboPreset;
 using BossAvoidance = WrathCombo.Combos.PvE.All.Enums.BossAvoidance;
 using PartyRequirement = WrathCombo.Combos.PvE.All.Enums.PartyRequirement;
+using Preset = WrathCombo.Combos.CustomComboPreset;
 
 // ReSharper disable AccessToStaticMemberViaDerivedType
 // ReSharper disable ConditionIsAlwaysTrueOrFalse
@@ -55,6 +54,120 @@ internal partial class DRK
     ///     DRK's GCD, truncated to two decimal places.
     /// </summary>
     private static double GCD => GetCooldown(HardSlash).CooldownTotal;
+
+    #region Burst Phase
+
+    #region Variables
+
+    /// When the current burst phase is set to truly start.
+    private static long burstStartTime;
+
+    /// When the current burst phase is set to end.
+    private static long burstEndTime;
+
+    /// The last time other jobs' buffs were checked for.
+    private static DateTime lastBuffCheck = DateTime.MinValue;
+
+    /// <summary>
+    ///     Whether the player is being affected by other jobs' buffs.
+    /// </summary>
+    private static bool HasOtherJobsBuffs
+    {
+        get
+        {
+            // Only run every 1 seconds at most (should be every other burst check)
+            if ((DateTime.Now - lastBuffCheck).TotalSeconds < 1)
+                return field;
+
+            field = TargetBuffRemainingTime(SCH.Debuffs.ChainStratagem) > 0 ||
+                    BuffRemainingTime(AST.Buffs.Divination) > 0 ||
+                    BuffRemainingTime(DRG.Buffs.BattleLitany) > 0 ||
+                    TargetBuffRemainingTime(NIN.Debuffs.Mug) > 0 ||
+                    TargetBuffRemainingTime(NIN.Debuffs.Dokumori) > 0 ||
+                    BuffRemainingTime(MNK.Buffs.Brotherhood) > 0 ||
+                    BuffRemainingTime(RPR.Buffs.ArcaneCircle) > 0 ||
+                    BuffRemainingTime(BRD.Buffs.BattleVoice) > 0 ||
+                    BuffRemainingTime(DNC.Buffs.TechnicalFinish) > 0 ||
+                    BuffRemainingTime(SMN.Buffs.SearingLight) > 0 ||
+                    BuffRemainingTime(RDM.Buffs.Embolden) > 0 ||
+                    BuffRemainingTime(RDM.Buffs.EmboldenOthers) > 0 ||
+                    BuffRemainingTime(PCT.Buffs.StarryMuse) > 0;
+
+            lastBuffCheck = DateTime.Now;
+            return field;
+
+            // Just a shorter name for the methods
+            double TargetBuffRemainingTime(ushort buff) =>
+                GetStatusEffectRemainingTime(buff, CurrentTarget, anyOwner:true);
+            double BuffRemainingTime(ushort buff) =>
+                GetStatusEffectRemainingTime(buff, anyOwner:true);
+        }
+    }
+
+    /// The last time burst phase was checked for.
+    private static DateTime lastBurstCheck = DateTime.MinValue;
+
+    #endregion
+
+    /// <summary>
+    /// Whether the DRK is in an even-minute Burst phase.
+    /// </summary>
+    internal static bool IsBursting
+    {
+        get
+        {
+            // Only run every .8 seconds at most
+            if ((DateTime.Now - lastBurstCheck).TotalSeconds < 0.8)
+                return field;
+
+            var burstAbility = LivingShadow;
+            var burstAbilityCDWindow = 90;
+            if (!LevelChecked(LivingShadow))
+            {
+                burstAbilityCDWindow = 40;
+                burstAbility = LevelChecked(Delirium) ? Delirium : BloodWeapon;
+            }
+
+            // Fallback resetting of burst
+            if (GetCooldownRemainingTime(burstAbility) < 2 || !InCombat())
+            {
+                burstStartTime = 0;
+                burstEndTime = 0;
+                field = false;
+            }
+
+            if (GetCooldownRemainingTime(burstAbility) >= burstAbilityCDWindow)
+            {
+                // If the buff is active, start burst in 4s
+                if (burstStartTime == 0)
+                    burstStartTime = Environment.TickCount64 + 4000;
+
+                // If the buff is active, set end time to 30s away
+                if (burstEndTime == 0)
+                    burstEndTime = Environment.TickCount64 + 30000;
+
+                // Set to bursting
+                if ((burstStartTime > 0 && Environment.TickCount64 > burstStartTime) ||
+                    HasOtherJobsBuffs)
+                {
+                    burstStartTime = 0;
+                    field = true;
+                }
+            }
+
+            // Reset bursting
+            if (burstEndTime > 0 && Environment.TickCount64 > burstEndTime)
+            {
+                burstEndTime = 0;
+                field = false;
+            }
+
+            lastBurstCheck = DateTime.Now;
+            return field;
+        }
+    }
+
+    #endregion
 
     /// <summary>
     ///     Method for getting the player's target more reliably.
@@ -101,24 +214,6 @@ internal partial class DRK
 
     #region Action Logic
 
-    /*
-     * The following methods all return `false` at the end, the only usual indicator
-     * that the `action` has not been changed.
-     * The only other return of `false` is when a piece of logic would apply to
-     * multiple following actions; Other cases of this - i.e. where such logic would
-     * apply to all such actions - is often done before the method call.
-     *
-     * All should be passed a `newAction` reference to overwrite when the return is
-     * true. If the return is false, the `newAction` should be ignored.
-     *
-     * All have a return pattern of:
-     *     return (action = ActionIDToExecute) != 0;
-     * Where `ActionIDToExecute` is the action to execute.
-     * The return is always true, the logic doesn't actually matter; The reason for
-     * this pattern is to allow for a return and an `action` assignment
-     * simultaneously.
-     */
-
     /// <remarks>
     ///     Actions in this Provider:
     ///     <list type="bullet">
@@ -135,14 +230,14 @@ internal partial class DRK
     /// </remarks>
     private class VariantAction : IActionProvider
     {
-        public bool TryGetAction(Combo flags, ref uint action)
+        public bool TryGetAction(Combo flags, ref uint action, bool? _)
         {
             #region Heal
 
             if ((flags.HasFlag(Combo.Simple) ||
                  (flags.HasFlag(Combo.Adv) && IsEnabled(Preset.DRK_Var_Cure))) &&
                 ActionReady(Variant.Cure) &&
-                PlayerHealthPercentageHp() <= GetOptionValue(Config.DRK_VariantCure))
+                PlayerHealthPercentageHp() <= Config.DRK_VariantCure)
                 return (action = Variant.Cure) != 0;
 
             #endregion
@@ -161,12 +256,10 @@ internal partial class DRK
 
             #region Damage over Time
 
-            var DoTStatus =
-                FindTargetEffect(VariantActions.Debuffs.SustainedDamage);
             if ((flags.HasFlag(Combo.Simple) ||
                  (flags.HasFlag(Combo.Adv) && IsEnabled(Preset.DRK_Var_Dart))) &&
                 ActionReady(Variant.SpiritDart) &&
-                DoTStatus?.RemainingTime <= 3)
+                GetStatusEffectRemainingTime(Content.Variant.Debuffs.SustainedDamage, CurrentTarget) <=3)
                 return (action = Variant.SpiritDart) != 0;
 
             #endregion
@@ -216,26 +309,27 @@ internal partial class DRK
     {
         public static bool ShouldDeliriumNext;
 
-        public bool TryGetAction(Combo flags, ref uint action)
+        public bool TryGetAction(Combo flags, ref uint action, bool? disesteemOnly)
         {
             #region Disesteem
 
+            disesteemOnly ??= false;
+
             if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) &&
-                   IsEnabled(Preset.DRK_ST_CD_Disesteem)) ||
-                  flags.HasFlag(Combo.AoE) &&
-                  IsEnabled(Preset.DRK_AoE_CD_Disesteem))) &&
+                 IsSTEnabled(flags, Preset.DRK_ST_CD_Disesteem) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_CD_Disesteem)) &&
                 ActionReady(Disesteem) &&
                 TraitLevelChecked(Traits.EnhancedShadowIII) &&
-                HasEffect(Buffs.Scorn) &&
+                HasStatusEffect(Buffs.Scorn) &&
                 ((Gauge.DarksideTimeRemaining > 0 &&
-                  GetBuffRemainingTime(Buffs.Scorn) < 24) ||
-                 GetBuffRemainingTime(Buffs.Scorn) < 14))
+                  GetStatusEffectRemainingTime(Buffs.Scorn) < 24) ||
+                 GetStatusEffectRemainingTime(Buffs.Scorn) < 14))
                 return (action = OriginalHook(Disesteem)) != 0;
 
             #endregion
 
             if (!CanWeave || Gauge.DarksideTimeRemaining <= 1) return false;
+            if (disesteemOnly == true) return false;
 
             #region Living Shadow
 
@@ -258,9 +352,8 @@ internal partial class DRK
             #endregion
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) && IsEnabled(Preset.DRK_ST_CD_Shadow)) ||
-                  flags.HasFlag(Combo.AoE) &&
-                  IsEnabled(Preset.DRK_AoE_CD_Shadow))) &&
+                 IsSTEnabled(flags, Preset.DRK_ST_CD_Shadow) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_CD_Shadow)) &&
                 IsOffCooldown(LivingShadow) &&
                 LevelChecked(LivingShadow) &&
                 shadowHPMatchesThreshold)
@@ -273,10 +366,8 @@ internal partial class DRK
             #region Interrupting
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) &&
-                   IsEnabled(Preset.DRK_ST_CD_Interrupt)) ||
-                  flags.HasFlag(Combo.AoE) &&
-                  IsEnabled(Preset.DRK_AoE_Interrupt))) &&
+                 IsSTEnabled(flags, Preset.DRK_ST_CD_Interrupt) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_Interrupt)) &&
                 Role.CanInterject())
                 return (action = Role.Interject) != 0;
 
@@ -309,13 +400,11 @@ internal partial class DRK
             #endregion
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) &&
-                   IsEnabled(Preset.DRK_ST_CD_Delirium)) ||
-                  flags.HasFlag(Combo.AoE) &&
-                  IsEnabled(Preset.DRK_AoE_CD_Delirium))) &&
+                 IsSTEnabled(flags, Preset.DRK_ST_CD_Delirium) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_CD_Delirium)) &&
                 deliriumHPMatchesThreshold &&
                 LevelChecked(BloodWeapon) &&
-                GetCooldownRemainingTime(BloodWeapon) < GCD)
+                GetCooldownRemainingTime(BloodWeapon) < GCD*1.5)
                 ShouldDeliriumNext = true;
 
             if (ShouldDeliriumNext &&
@@ -348,11 +437,11 @@ internal partial class DRK
             #endregion
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) && IsEnabled(Preset.DRK_ST_CD_Salt)) ||
-                  flags.HasFlag(Combo.AoE) && IsEnabled(Preset.DRK_AoE_CD_Salt))) &&
+                 IsSTEnabled(flags, Preset.DRK_ST_CD_Salt) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_CD_Salt)) &&
                 LevelChecked(SaltedEarth) &&
                 IsOffCooldown(SaltedEarth) &&
-                !HasEffect(Buffs.SaltedEarth) &&
+                !HasStatusEffect(Buffs.SaltedEarth) &&
                 saltStill &&
                 GetTargetHPPercent(Target(flags)) >= saltHPThreshold)
                 return (action = SaltedEarth) != 0;
@@ -366,8 +455,8 @@ internal partial class DRK
                  IsEnabled(Preset.DRK_ST_CD_Darkness)) &&
                 LevelChecked(SaltAndDarkness) &&
                 IsOffCooldown(SaltAndDarkness) &&
-                HasEffect(Buffs.SaltedEarth) &&
-                GetBuffRemainingTime(Buffs.SaltedEarth) < 7)
+                HasStatusEffect(Buffs.SaltedEarth) &&
+                GetStatusEffectRemainingTime(Buffs.SaltedEarth) < 7)
                 return (action = OriginalHook(SaltAndDarkness)) != 0;
 
             #endregion
@@ -383,14 +472,13 @@ internal partial class DRK
                 (flags.HasFlag(Combo.Adv) && flags.HasFlag(Combo.ST) &&
                  IsEnabled(Preset.DRK_ST_CD_BringerBurst) &&
                  GetCooldownRemainingTime(LivingShadow) >= 90 &&
-                 !HasEffect(Buffs.Scorn));
+                 !HasStatusEffect(Buffs.Scorn));
 
             #endregion
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) && IsEnabled(Preset.DRK_ST_CD_Bringer)) ||
-                  flags.HasFlag(Combo.AoE) &&
-                  IsEnabled(Preset.DRK_AoE_CD_Bringer))) &&
+                 IsSTEnabled(flags, Preset.DRK_ST_CD_Bringer) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_CD_Bringer)) &&
                 ActionReady(Shadowbringer) &&
                 bringerInBurst)
                 return (action = Shadowbringer) != 0;
@@ -402,7 +490,10 @@ internal partial class DRK
             if (flags.HasFlag(Combo.ST) &&
                 (flags.HasFlag(Combo.Simple) ||
                  IsEnabled(Preset.DRK_ST_CD_Spit)) &&
-                ActionReady(CarveAndSpit))
+                ActionReady(CarveAndSpit) &&
+                (int)LocalPlayer.CurrentMp <= 9400 &&
+                (!LevelChecked(LivingShadow) ||
+                 GetCooldownRemainingTime(LivingShadow) > 20))
                 return (action = CarveAndSpit) != 0;
 
             #endregion
@@ -482,14 +573,12 @@ internal partial class DRK
     /// </remarks>
     private class Mitigation : IActionProvider
     {
-        public bool TryGetAction(Combo flags, ref uint action)
+        public bool TryGetAction(Combo flags, ref uint action, bool? _)
         {
-            if (JustUsedMitigation) return false;
-
             // Bail if we're trying to Invuln or actively Invulnerable
-            if (HasEffect(Buffs.LivingDead) ||
-                HasEffect(Buffs.WalkingDead) ||
-                HasEffect(Buffs.UndeadRebirth))
+            if (HasStatusEffect(Buffs.LivingDead) ||
+                HasStatusEffect(Buffs.WalkingDead) ||
+                HasStatusEffect(Buffs.UndeadRebirth))
                 return false;
 
             // Bail if Simple mode and mitigation is disabled
@@ -523,10 +612,8 @@ internal partial class DRK
             #endregion
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) &&
-                   IsEnabled(Preset.DRK_ST_Mit_LivingDead)) ||
-                  flags.HasFlag(Combo.AoE) &&
-                  IsEnabled(Preset.DRK_AoE_Mit_LivingDead))) &&
+                 IsSTEnabled(flags, Preset.DRK_ST_Mit_LivingDead) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_Mit_LivingDead)) &&
                 ActionReady(LivingDead) &&
                 PlayerHealthPercentageHp() <= livingDeadSelfThreshold &&
                 GetTargetHPPercent(Target(flags)) >= livingDeadTargetThreshold &&
@@ -540,12 +627,14 @@ internal partial class DRK
 
             // Bail if we can't weave any other mitigations
             if (!CanWeave) return false;
+            // Bail if we just used mitigation
+            if (JustUsedMitigation) return false;
 
             #region TBN
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) && IsEnabled(Preset.DRK_ST_Mit_TBN)) ||
-                  flags.HasFlag(Combo.AoE) && IsEnabled(Preset.DRK_AoE_Mit_TBN))) &&
+                 IsSTEnabled(flags, Preset.DRK_ST_Mit_TBN) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_Mit_TBN)) &&
                 ActionReady(BlackestNight) &&
                 LocalPlayer.CurrentMp >= 3000 &&
                 ShouldTBNSelf(flags.HasFlag(Combo.AoE)))
@@ -571,12 +660,10 @@ internal partial class DRK
             #endregion
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) &&
-                   IsEnabled(Preset.DRK_ST_Mit_Oblation)) ||
-                  flags.HasFlag(Combo.AoE) &&
-                  IsEnabled(Preset.DRK_AoE_Mit_Oblation))) &&
+                 IsSTEnabled(flags, Preset.DRK_ST_Mit_Oblation) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_Mit_Oblation)) &&
                 ActionReady(Oblation) &&
-                !HasEffectAny(Buffs.Oblation) &&
+                !HasStatusEffect(Buffs.Oblation, anyOwner: true) &&
                 GetRemainingCharges(Oblation) > oblationCharges &&
                 PlayerHealthPercentageHp() <= oblationThreshold)
                 return (action = Oblation) != 0;
@@ -601,10 +688,8 @@ internal partial class DRK
             #endregion
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) &&
-                   IsEnabled(Preset.DRK_ST_Mit_Reprisal)) ||
-                  flags.HasFlag(Combo.AoE) &&
-                  IsEnabled(Preset.DRK_AoE_Mit_Reprisal))) &&
+                 IsSTEnabled(flags, Preset.DRK_ST_Mit_Reprisal) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_Mit_Reprisal)) &&
                 reprisalUseForRaidwides &&
                 Role.CanReprisal(reprisalThreshold, reprisalTargetCount,
                     !flags.HasFlag(Combo.AoE)))
@@ -624,7 +709,7 @@ internal partial class DRK
                 flags.HasFlag(Combo.AoE) ||
                 flags.HasFlag(Combo.Simple) ||
                 IsNotEnabled(Preset.DRK_ST_Mit_MissionaryAvoid) ||
-                !TargetHasEffectAny(Role.Debuffs.Reprisal);
+                !HasStatusEffect(Role.Debuffs.Reprisal, CurrentTarget, true);
 
             #endregion
 
@@ -689,9 +774,8 @@ internal partial class DRK
             #endregion
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) && IsEnabled(Preset.DRK_ST_Mit_Vigil)) ||
-                  flags.HasFlag(Combo.AoE) &&
-                  IsEnabled(Preset.DRK_AoE_Mit_Vigil))) &&
+                 IsSTEnabled(flags, Preset.DRK_ST_Mit_Vigil) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_Mit_Vigil)) &&
                 ActionReady(ShadowedVigil) &&
                 PlayerHealthPercentageHp() <= vigilHealthThreshold)
                 return (action = OriginalHook(ShadowWall)) != 0;
@@ -736,9 +820,10 @@ internal partial class DRK
     /// </remarks>
     private class Spender : IActionProvider
     {
-        public bool TryGetAction(Combo flags, ref uint action)
+        public bool TryGetAction(Combo flags, ref uint action, bool? specialManaOnly)
         {
-            if (TryGetManaAction(flags, ref action)) return true;
+            if (TryGetManaAction(flags, ref action, specialManaOnly)) return true;
+            if (specialManaOnly == true) return false;
             if (TryGetBloodAction(flags, ref action)) return true;
 
             return false;
@@ -748,23 +833,23 @@ internal partial class DRK
         {
             if (ComboTimer > 0 && ComboTimer < GCD * 2) return false;
 
-            #region Variables
+            #region Variables and readiness bails
 
             var bloodGCDReady =
                 LevelChecked(Bloodspiller) &&
-                GetCooldownRemainingTime(Bloodspiller) < GCD;
+                GetCooldownRemainingTime(Bloodspiller) < GCD/2;
+
+            if (!bloodGCDReady) return false;
 
             #endregion
 
             #region Delirium Chain
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) &&
-                   IsEnabled(Preset.DRK_ST_Sp_ScarletChain)) ||
-                  flags.HasFlag(Combo.AoE) &&
-                  IsEnabled(Preset.DRK_AoE_Sp_ImpalementChain))) &&
-                HasEffect(Buffs.EnhancedDelirium) &&
-                bloodGCDReady)
+                 IsSTEnabled(flags, Preset.DRK_ST_Sp_ScarletChain) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_Sp_ImpalementChain)) &&
+                HasStatusEffect(Buffs.EnhancedDelirium) &&
+                GetStatusEffectStacks(Buffs.EnhancedDelirium) > 0)
                 if (flags.HasFlag(Combo.ST))
                     return (action = OriginalHook(Bloodspiller)) != 0;
                 else if (flags.HasFlag(Combo.AoE))
@@ -775,12 +860,9 @@ internal partial class DRK
             #region Blood Spending during Delirium (Lower Levels)
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 (flags.HasFlag(Combo.AoE) &&
-                  IsEnabled(Preset.DRK_AoE_Sp_Quietus)) ||
-                 (flags.HasFlag(Combo.ST) &&
-                  IsEnabled(Preset.DRK_ST_Sp_Bloodspiller))) &&
-                GetBuffStacks(Buffs.Delirium) > 0 &&
-                bloodGCDReady)
+                 IsSTEnabled(flags, Preset.DRK_ST_Sp_Bloodspiller) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_Sp_Quietus)) &&
+                GetStatusEffectStacks(Buffs.Delirium) > 0)
                 if (flags.HasFlag(Combo.ST))
                     return (action = OriginalHook(Bloodspiller)) != 0;
                 else if (flags.HasFlag(Combo.AoE))
@@ -792,26 +874,23 @@ internal partial class DRK
 
             if (flags.HasFlag(Combo.ST) &&
                 (flags.HasFlag(Combo.Simple) ||
-                 (flags.HasFlag(Combo.Adv) &&
-                  IsEnabled(Preset.DRK_ST_CD_Delirium))) &&
+                 IsEnabled(Preset.DRK_ST_CD_Delirium)) &&
                 LevelChecked(Delirium) &&
                 Gauge.Blood >= 70 &&
-                Cooldown.ShouldDeliriumNext &&
-                bloodGCDReady)
+                Cooldown.ShouldDeliriumNext)
                 return (action = Bloodspiller) != 0;
 
             #endregion
 
+            if (HasStatusEffect(Buffs.Scorn)) return false;
+
             #region Blood Spending after Delirium Chain
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 (flags.HasFlag(Combo.AoE) &&
-                  IsEnabled(Preset.DRK_AoE_Sp_Quietus)) ||
-                 (flags.HasFlag(Combo.ST) &&
-                  IsEnabled(Preset.DRK_ST_Sp_Bloodspiller))) &&
+                 IsSTEnabled(flags, Preset.DRK_ST_Sp_Bloodspiller) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_Sp_Quietus)) &&
                 Gauge.Blood >= 50 &&
-                GetCooldownRemainingTime(Delirium) > 37 &&
-                bloodGCDReady)
+                (GetCooldownRemainingTime(Delirium) > 37 || IsBursting))
                 if (flags.HasFlag(Combo.ST))
                     return (action = Bloodspiller) != 0;
                 else if (flags.HasFlag(Combo.AoE) && LevelChecked(Quietus))
@@ -835,12 +914,9 @@ internal partial class DRK
             #endregion
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) &&
-                   IsEnabled(Preset.DRK_ST_Sp_BloodOvercap)) ||
-                  flags.HasFlag(Combo.AoE) &&
-                  IsEnabled(Preset.DRK_AoE_Sp_BloodOvercap))) &&
+                 IsSTEnabled(flags, Preset.DRK_ST_Sp_BloodOvercap) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_Sp_BloodOvercap)) &&
                 Gauge.Blood >= overcapThreshold &&
-                bloodGCDReady &&
                 beforeSouleater)
                 if (flags.HasFlag(Combo.ST))
                     return (action = Bloodspiller) != 0;
@@ -852,7 +928,7 @@ internal partial class DRK
             return false;
         }
 
-        private bool TryGetManaAction(Combo flags, ref uint action)
+        private bool TryGetManaAction(Combo flags, ref uint action, bool? specialOnly)
         {
             // Bail if we can't weave anything else
             if (!CanWeave) return false;
@@ -878,13 +954,10 @@ internal partial class DRK
             var secondsBeforeBurst =
                 flags.HasFlag(Combo.Adv) && flags.HasFlag(Combo.ST)
                     ? Config.DRK_ST_BurstSoonThreshold
-                    : 30;
+                    : 20;
             var evenBurstSoon =
                 IsOnCooldown(LivingShadow) &&
                 GetCooldownRemainingTime(LivingShadow) < secondsBeforeBurst;
-            var bursting =
-                GetCooldownRemainingTime(LivingShadow) >= 100 ||
-                GetCooldownRemainingTime(Delirium) >= 50;
             var darksideDropping = Gauge.DarksideTimeRemaining / 1000 < 10;
 
             // Bail if we don't have enough mana
@@ -892,14 +965,32 @@ internal partial class DRK
 
             #endregion
 
+            #region Darkside Maintenance
+
+            if ((flags.HasFlag(Combo.Simple) ||
+                 IsSTEnabled(flags, Preset.DRK_ST_Sp_EdgeDarkside) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_Sp_Flood)) &&
+                darksideDropping)
+                if (flags.HasFlag(Combo.ST) && LevelChecked(EdgeOfDarkness))
+                    return (action = OriginalHook(EdgeOfDarkness)) != 0;
+                else
+                    return (action = OriginalHook(FloodOfDarkness)) != 0;
+
+            #endregion
+
+            // Bail if it is right before burst
+            if (GetCooldownRemainingTime(LivingShadow) <
+                Math.Min(6, secondsBeforeBurst) &&
+                LevelChecked(LivingShadow) &&
+                CombatEngageDuration().TotalSeconds > 20)
+                return false;
+
             #region Mana Overcap
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) &&
-                   IsEnabled(Preset.DRK_ST_Sp_ManaOvercap)) ||
-                  flags.HasFlag(Combo.AoE) &&
-                  IsEnabled(Preset.DRK_AoE_Sp_ManaOvercap))) &&
-                mana >= 8500 &&
+                 IsSTEnabled(flags, Preset.DRK_ST_Sp_ManaOvercap) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_Sp_ManaOvercap)) &&
+                mana >= 9400 &&
                 !evenBurstSoon)
                 if (flags.HasFlag(Combo.ST) && LevelChecked(EdgeOfDarkness))
                     return (action = OriginalHook(EdgeOfDarkness)) != 0;
@@ -908,14 +999,14 @@ internal partial class DRK
 
             #endregion
 
-            #region Darkside Maintenance
+            if (specialOnly == true) return false;
+
+            #region Burst Phase Spending
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) &&
-                   IsEnabled(Preset.DRK_ST_Sp_EdgeDarkside)) ||
-                  flags.HasFlag(Combo.AoE) &&
-                  IsEnabled(Preset.DRK_AoE_Sp_Flood))) &&
-                darksideDropping)
+                 IsSTEnabled(flags, Preset.DRK_ST_Sp_Edge) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_Sp_Flood)) &&
+                IsBursting)
                 if (flags.HasFlag(Combo.ST) && LevelChecked(EdgeOfDarkness))
                     return (action = OriginalHook(EdgeOfDarkness)) != 0;
                 else
@@ -926,42 +1017,12 @@ internal partial class DRK
             // Bail if it is too early into the fight
             if (CombatEngageDuration().TotalSeconds <= 10) return false;
 
-            #region Burst Phase Spending
-
-            if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) && IsEnabled(Preset.DRK_ST_Sp_Edge)) ||
-                  flags.HasFlag(Combo.AoE) && IsEnabled(Preset.DRK_AoE_Sp_Flood))) &&
-                bursting)
-                if (flags.HasFlag(Combo.ST) && LevelChecked(EdgeOfDarkness))
-                    return (action = OriginalHook(EdgeOfDarkness)) != 0;
-                else
-                    return (action = OriginalHook(FloodOfDarkness)) != 0;
-
-            #endregion
-
             #region Mana Dark Arts Drop Prevention
 
             if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) &&
-                   IsEnabled(Preset.DRK_ST_Sp_DarkArts)) ||
-                  flags.HasFlag(Combo.AoE) && IsEnabled(Preset.DRK_AoE_Sp_Flood))) &&
+                 IsSTEnabled(flags, Preset.DRK_ST_Sp_DarkArts) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_Sp_Flood)) &&
                 Gauge.HasDarkArts && HasOwnTBN)
-                if (flags.HasFlag(Combo.ST) && LevelChecked(EdgeOfDarkness))
-                    return (action = OriginalHook(EdgeOfDarkness)) != 0;
-                else
-                    return (action = OriginalHook(FloodOfDarkness)) != 0;
-
-            #endregion
-
-            // Bail if we're trying to save Dark Arts for burst
-            if (Gauge.HasDarkArts && evenBurstSoon) return false;
-
-            #region Mana Spend to Limit
-
-            if ((flags.HasFlag(Combo.Simple) ||
-                 ((flags.HasFlag(Combo.ST) && IsEnabled(Preset.DRK_ST_Sp_Edge)) ||
-                  flags.HasFlag(Combo.AoE) && IsEnabled(Preset.DRK_AoE_Sp_Flood))) &&
-                !evenBurstSoon)
                 if (flags.HasFlag(Combo.ST) && LevelChecked(EdgeOfDarkness))
                     return (action = OriginalHook(EdgeOfDarkness)) != 0;
                 else
@@ -996,7 +1057,7 @@ internal partial class DRK
     /// </remarks>
     private class Core : IActionProvider
     {
-        public bool TryGetAction(Combo flags, ref uint action)
+        public bool TryGetAction(Combo flags, ref uint action, bool? _)
         {
             var comboRunning = ComboTimer > 0;
             var lastComboAction = ComboAction;
@@ -1042,11 +1103,7 @@ internal partial class DRK
         {
             var has = false;
             if (LocalPlayer is not null)
-                has = FindEffect(
-                    Buffs.BlackestNightShield,
-                    LocalPlayer,
-                    LocalPlayer.GameObjectId
-                ) is not null;
+                has = HasStatusEffect(Buffs.BlackestNightShield);
 
             return has;
         }
@@ -1062,7 +1119,7 @@ internal partial class DRK
         {
             var has = false;
             if (LocalPlayer is not null)
-                has = FindEffect(Buffs.BlackestNightShield) is not null;
+                has = HasStatusEffect(Buffs.BlackestNightShield, anyOwner: true);
 
             return has;
         }
@@ -1156,8 +1213,8 @@ internal partial class DRK
             () => !HasAnyTBN && LocalPlayer.CurrentMp > 3000 &&
                   PlayerHealthPercentageHp() <= Config.DRK_Mit_TBN_Health),
         (Oblation, Preset.DRK_Mit_Oblation,
-            () => (!((HasFriendlyTarget() && TargetHasEffectAny(Buffs.Oblation)) ||
-                     (!HasFriendlyTarget() && HasEffectAny(Buffs.Oblation)))) &&
+            () => (!((HasFriendlyTarget() && HasStatusEffect(Buffs.Oblation, CurrentTarget, true)) ||
+                     (!HasFriendlyTarget() && HasStatusEffect(Buffs.Oblation, anyOwner: true)))) &&
                   GetRemainingCharges(Oblation) > Config.DRK_Mit_Oblation_Charges),
         (Role.Reprisal, Preset.DRK_Mit_Reprisal,
             () => Role.CanReprisal(checkTargetForDebuff:false)),
@@ -1282,22 +1339,22 @@ internal partial class DRK
 
     public const uint
 
-        #region Single-Target 1-2-3 Combo
+    #region Single-Target 1-2-3 Combo
 
         HardSlash = 3617,
         SyphonStrike = 3623,
         Souleater = 3632,
 
-        #endregion
+    #endregion
 
-        #region AoE 1-2-3 Combo
+    #region AoE 1-2-3 Combo
 
         Unleash = 3621,
         StalwartSoul = 16468,
 
-        #endregion
+    #endregion
 
-        #region Single-Target oGCDs
+    #region Single-Target oGCDs
 
         CarveAndSpit = 3643, // With AbyssalDrain
         EdgeOfDarkness = 16467, // For MP
@@ -1307,9 +1364,9 @@ internal partial class DRK
         Comeuppance = 36929, // Under Enhanced Delirium
         Torcleaver = 36930, // Under Enhanced Delirium
 
-        #endregion
+    #endregion
 
-        #region AoE oGCDs
+    #region AoE oGCDs
 
         AbyssalDrain = 3641, // Cooldown shared with CarveAndSpit
         FloodOfDarkness = 16466, // For MP
@@ -1319,30 +1376,30 @@ internal partial class DRK
         SaltAndDarkness = 25755, // Recast of Salted Earth
         Impalement = 36931, // Under Delirium
 
-        #endregion
+    #endregion
 
-        #region Buffing oGCDs
+    #region Buffing oGCDs
 
         BloodWeapon = 3625,
         Delirium = 7390,
 
-        #endregion
+    #endregion
 
-        #region Burst Window
+    #region Burst Window
 
         LivingShadow = 16472,
         Shadowbringer = 25757,
         Disesteem = 36932,
 
-        #endregion
+    #endregion
 
-        #region Ranged Option
+    #region Ranged Option
 
         Unmend = 3624,
 
-        #endregion
+    #endregion
 
-        #region Mitigation
+    #region Mitigation
 
         Grit =
             3629, // Lv10, instant, 2.0s CD (group 1), range 0, single-target, targets=Self
@@ -1453,8 +1510,20 @@ internal partial class DRK
 
     private interface IActionProvider
     {
-        bool TryGetAction(Combo flags, ref uint action);
+        bool TryGetAction(Combo flags, ref uint action, bool? extraParam = null);
     }
+
+    /// <summary>
+    ///     Checks whether a given preset is enabled, and the flags match it.
+    /// </summary>
+    private static bool IsSTEnabled(Combo flags, Preset preset) =>
+        flags.HasFlag(Combo.ST) && IsEnabled(preset);
+
+    /// <summary>
+    ///     Checks whether a given preset is enabled, and the flags match it.
+    /// </summary>
+    private static bool IsAoEEnabled(Combo flags, Preset preset) =>
+        flags.HasFlag(Combo.AoE) && IsEnabled(preset);
 
     /// <summary>
     ///     Signature for the TryGetAction&lt;ActionType&gt; methods.
@@ -1463,6 +1532,7 @@ internal partial class DRK
     ///     The flags to describe the combo executing this method.
     /// </param>
     /// <param name="action">The action to execute.</param>
+    /// <param name="extraParam">Any extra parameter to pass through.</param>
     /// <returns>Whether the <c>action</c> was changed.</returns>
     /// <seealso cref="IActionProvider.TryGetAction" />
     /// <seealso cref="VariantAction" />
@@ -1470,8 +1540,8 @@ internal partial class DRK
     /// <seealso cref="Spender" />
     /// <seealso cref="Cooldown" />
     /// <seealso cref="Core" />
-    private static bool TryGetAction<T>(Combo flags, ref uint action)
-        where T : IActionProvider, new() => new T().TryGetAction(flags, ref action);
+    private static bool TryGetAction<T> (Combo flags, ref uint action, bool? extraParam = null)
+        where T : IActionProvider, new() => new T().TryGetAction(flags, ref action, extraParam);
 
     #endregion
 }
