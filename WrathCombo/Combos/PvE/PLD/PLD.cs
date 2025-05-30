@@ -71,6 +71,16 @@ internal partial class PLD : Tank
             if (Role.CanInterject())
                 return Role.Interject;
 
+            // Stun
+            if (!TargetIsBoss()
+                && TargetIsCasting()
+                && !JustUsed(Role.Interject)
+                && !InBossEncounter())
+                if (ActionReady(ShieldBash) && !JustUsed(Role.LowBlow))
+                    return ShieldBash;
+                else if (Role.CanLowBlow() && !JustUsed(ShieldBash))
+                    return Role.LowBlow;
+
             // Variant Cure
             if (Variant.CanCure(CustomComboPreset.PLD_Variant_Cure, Config.PLD_VariantCure))
                 return Variant.Cure;
@@ -262,10 +272,10 @@ internal partial class PLD : Tank
                 return Role.Interject;
 
             // Stun
-            if (TargetIsCasting())
-                if (ActionReady(ShieldBash))
+            if (TargetIsCasting() && !JustUsed(Role.Interject))
+                if (ActionReady(ShieldBash) && !JustUsed(Role.LowBlow))
                     return ShieldBash;
-                else if (Role.CanLowBlow())
+                else if (Role.CanLowBlow() && !JustUsed(ShieldBash))
                     return Role.LowBlow;
 
             // Variant Cure
@@ -322,7 +332,7 @@ internal partial class PLD : Tank
                             return OriginalHook(Requiescat);
 
                         // Fight or Flight
-                        if (ActionReady(FightOrFlight) && (cooldownRequiescat < 0.5f && hasRequiescatMP && canEarlyWeave || !LevelChecked(Requiescat)))
+                        if (ActionReady(FightOrFlight) && (!LevelChecked(Requiescat) || (cooldownRequiescat < 0.5f && hasRequiescatMP && canEarlyWeave)))
                             return FightOrFlight;
 
                         // Variant Ultimatum
@@ -410,6 +420,17 @@ internal partial class PLD : Tank
             if (IsEnabled(CustomComboPreset.PLD_ST_Interrupt)
                 && Role.CanInterject())
                 return Role.Interject;
+
+            // Stun
+            if (IsEnabled(CustomComboPreset.PLD_ST_Stun)
+                && !TargetIsBoss()
+                && TargetIsCasting()
+                && !JustUsed(Role.Interject)
+                && !InBossEncounter())
+                if (ActionReady(ShieldBash) && !JustUsed(Role.LowBlow))
+                    return ShieldBash;
+                else if (Role.CanLowBlow() && !JustUsed(ShieldBash))
+                    return Role.LowBlow;
 
             // Variant Cure
             if (Variant.CanCure(CustomComboPreset.PLD_Variant_Cure, Config.PLD_VariantCure))
@@ -610,10 +631,10 @@ internal partial class PLD : Tank
                 return Role.Interject;
 
             // Stun
-            if (IsEnabled(CustomComboPreset.PLD_AoE_Stun) && TargetIsCasting())
-                if (ActionReady(ShieldBash))
+            if (IsEnabled(CustomComboPreset.PLD_AoE_Stun) && TargetIsCasting() && !JustUsed(Role.Interject))
+                if (ActionReady(ShieldBash) && !JustUsed(Role.LowBlow))
                     return ShieldBash;
-                else if (Role.CanLowBlow())
+                else if (Role.CanLowBlow() && !JustUsed(ShieldBash))
                     return Role.LowBlow;
 
             // Variant Cure
@@ -633,7 +654,7 @@ internal partial class PLD : Tank
 
                         // Fight or Flight
                         if (IsEnabled(CustomComboPreset.PLD_AoE_AdvancedMode_FoF) && ActionReady(FightOrFlight) && GetTargetHPPercent() >= Config.PLD_AoE_FoF_Trigger &&
-                            (cooldownRequiescat < 0.5f && hasRequiescatMP && canEarlyWeave || !LevelChecked(Requiescat)))
+                            (!LevelChecked(Requiescat) || (cooldownRequiescat < 0.5f && hasRequiescatMP && canEarlyWeave)))
                             return FightOrFlight;
 
                         // Variant Ultimatum
@@ -807,6 +828,28 @@ internal partial class PLD : Tank
             }
 
             return actionID;
+        }
+    }
+
+    internal class PLD_Mit_OneButton_Party : CustomCombo
+    {
+        protected internal override CustomComboPreset Preset { get; } =
+            CustomComboPreset.PLD_Mit_Party;
+
+        protected override uint Invoke(uint action)
+        {
+            if (action is not DivineVeil)
+                return action;
+
+            if (ActionReady(Role.Reprisal))
+                return Role.Reprisal;
+
+            if (ActionReady(PassageOfArms) &&
+                IsEnabled(CustomComboPreset.PLD_Mit_Party_Wings) &&
+                !HasStatusEffect(Buffs.PassageOfArms, anyOwner: true))
+                return PassageOfArms;
+
+            return action;
         }
     }
 

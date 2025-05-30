@@ -331,6 +331,12 @@ internal partial class DRK
             if (!CanWeave || Gauge.DarksideTimeRemaining <= 1) return false;
             if (disesteemOnly == true) return false;
 
+            if (HiddenFeaturesData.IsEnabledWith(
+                    Preset.DRK_Hid_R6SHoldSquirrelBurst,
+                    () => HiddenFeaturesData.Targeting.R6SSquirrel &&
+                          CombatEngageDuration().TotalSeconds < 275))
+                return false;
+
             #region Living Shadow
 
             #region Variables
@@ -368,13 +374,24 @@ internal partial class DRK
             if ((flags.HasFlag(Combo.Simple) ||
                  IsSTEnabled(flags, Preset.DRK_ST_CD_Interrupt) ||
                  IsAoEEnabled(flags, Preset.DRK_AoE_Interrupt)) &&
+                HiddenFeaturesData.IsEnabledWith(
+                    Preset.DRK_Hid_R7SCircleCastOnly,
+                    () => HiddenFeaturesData.Content.InR7S,
+                    () => HiddenFeaturesData.Targeting.R7SCircleCastingAdd) &&
                 Role.CanInterject())
                 return (action = Role.Interject) != 0;
 
-            if (flags.HasFlag(Combo.AoE) &&
-                (flags.HasFlag(Combo.Simple) ||
-                 IsEnabled(Preset.DRK_AoE_Stun)) &&
-                Role.CanLowBlow())
+            if ((flags.HasFlag(Combo.Simple) ||
+                 IsSTEnabled(flags, Preset.DRK_ST_CD_Stun) ||
+                 IsAoEEnabled(flags, Preset.DRK_AoE_Stun)) &&
+                !TargetIsBoss() &&
+                !JustUsed(Role.Interject) &&
+                Role.CanLowBlow() &&
+                HiddenFeaturesData.IsEnabledWith(
+                    Preset.DRK_Hid_R6SStunJabberOnly,
+                    () => HiddenFeaturesData.Content.InR6S,
+                    () => HiddenFeaturesData.Targeting.R6SJabber) &&
+                !InBossEncounter())
                 return (action = Role.LowBlow) != 0;
 
             #endregion
@@ -523,19 +540,21 @@ internal partial class DRK
 
     #region JustUsedMit
 
+    private static bool InSavagePlus => ContentCheck.IsInSavagePlusContent;
+
     /// <summary>
     ///     Whether mitigation was very recently used, depending on the duration and
     ///     strength of the mitigation.
     /// </summary>
-    private static readonly bool JustUsedMitigation =
-        JustUsed(BlackestNight, 4f) ||
-        JustUsed(Oblation, 4f) ||
-        JustUsed(Role.Reprisal, 4f) ||
-        JustUsed(DarkMissionary, 5f) ||
+    private static bool JustUsedMitigation =>
+        JustUsed(BlackestNight, (InSavagePlus ? 3f : 4f)) ||
+        JustUsed(Oblation, (InSavagePlus ? 6f : 4f)) ||
+        JustUsed(Role.Reprisal, (InSavagePlus ? 1f : 4f)) ||
+        JustUsed(DarkMissionary, (InSavagePlus ? 0f : 5f)) ||
         JustUsed(Role.Rampart, 6f) ||
-        JustUsed(Role.ArmsLength, 4f) ||
-        JustUsed(ShadowedVigil, 6f) ||
-        JustUsed(LivingDead, 7f);
+        JustUsed(Role.ArmsLength, (InSavagePlus ? 0f : 4f)) ||
+        JustUsed(ShadowedVigil, (InSavagePlus ? 11f : 6f)) ||
+        JustUsed(LivingDead, (InSavagePlus ? 13f : 7f));
 
     #endregion
 
@@ -692,7 +711,10 @@ internal partial class DRK
                  IsAoEEnabled(flags, Preset.DRK_AoE_Mit_Reprisal)) &&
                 reprisalUseForRaidwides &&
                 Role.CanReprisal(reprisalThreshold, reprisalTargetCount,
-                    !flags.HasFlag(Combo.AoE)))
+                    !flags.HasFlag(Combo.AoE)) &&
+                HiddenFeaturesData.IsEnabledWith(
+                    Preset.DRK_Hid_R6SNoAutoGroupMits,
+                    () => !HiddenFeaturesData.Content.InR6S))
                 return (action = Role.Reprisal) != 0;
 
             #endregion
@@ -719,7 +741,10 @@ internal partial class DRK
                 ActionReady(DarkMissionary) &&
                 RaidWideCasting() &&
                 missionaryAvoidanceSatisfied &&
-                PlayerHealthPercentageHp() <= missionaryThreshold)
+                PlayerHealthPercentageHp() <= missionaryThreshold &&
+                HiddenFeaturesData.IsEnabledWith(
+                    Preset.DRK_Hid_R6SNoAutoGroupMits,
+                    () => !HiddenFeaturesData.Content.InR6S))
                 return (action = DarkMissionary) != 0;
 
             #endregion
@@ -1213,8 +1238,8 @@ internal partial class DRK
             () => !HasAnyTBN && LocalPlayer.CurrentMp > 3000 &&
                   PlayerHealthPercentageHp() <= Config.DRK_Mit_TBN_Health),
         (Oblation, Preset.DRK_Mit_Oblation,
-            () => (!((HasFriendlyTarget() && HasStatusEffect(Buffs.Oblation, CurrentTarget, true)) ||
-                     (!HasFriendlyTarget() && HasStatusEffect(Buffs.Oblation, anyOwner: true)))) &&
+            () => (!((TargetIsFriendly() && HasStatusEffect(Buffs.Oblation, CurrentTarget, true)) ||
+                     (!TargetIsFriendly() && HasStatusEffect(Buffs.Oblation, anyOwner: true)))) &&
                   GetRemainingCharges(Oblation) > Config.DRK_Mit_Oblation_Charges),
         (Role.Reprisal, Preset.DRK_Mit_Reprisal,
             () => Role.CanReprisal(checkTargetForDebuff:false)),
@@ -1280,26 +1305,60 @@ internal partial class DRK
 
         public override List<uint> OpenerActions { get; set; } =
         [
+            Unmend,
             HardSlash,
             EdgeOfShadow, // Not handled like a procc, since it sets up Darkside
             LivingShadow,
-            SyphonStrike,
-            Souleater, // 5
+            SyphonStrike, // 5
+            LivingShadow,
+            Souleater,
             Delirium,
-            Disesteem,
+            HardSlash,
+            Disesteem, // 10
             SaltedEarth,
             //EdgeOfShadow, // Handled like a procc
             ScarletDelirium,
-            Shadowbringer, // 10
+            Shadowbringer,
             //EdgeOfShadow, // Handled like a procc
             Comeuppance,
-            CarveAndSpit,
+            CarveAndSpit, // 15
             //EdgeOfShadow, // Handled like a procc
             Torcleaver,
             Shadowbringer,
             //EdgeOfShadow, // Handled like a procc
-            Bloodspiller, // 15
+            Bloodspiller,
             SaltAndDarkness,
+        ];
+
+        public override List<(int[] Steps, uint NewAction, Func<bool> Condition)> SubstitutionSteps
+        {
+            get;
+            set;
+        } =
+        [
+            // Pull with Shadowstride as selected
+            ([1], Shadowstride, () =>
+                Config.DRK_ST_OpenerAction == (int)Config.PullAction.Shadowstride),
+            // Pull with HardSlash as selected (requires skipping the now-duplicate HardSlash)
+            ([1], HardSlash, () =>
+                Config.DRK_ST_OpenerAction == (int)Config.PullAction.HardSlash),
+        ];
+
+        public override List<(int[] Steps, Func<bool> Condition)> SkipSteps
+        {
+            get;
+            set;
+        } =
+        [
+            // Skip the duplicate HardSlash, if pulling with HardSlash
+            ([2], () =>
+                Config.DRK_ST_OpenerAction == (int)Config.PullAction.HardSlash),
+            // Skip the early LivingShadow, if non-standard
+            ([4], () =>
+                Config.DRK_ST_OpenerAction != (int)Config.PullAction.Unmend),
+            // Skip the late LivingShadow and aligning HardSlash, if Standard
+            ([6, 9], () => HasOtherJobsBuffs ||
+                Config.DRK_ST_OpenerAction == (int)Config.PullAction.Unmend),
         ];
 
         internal override UserData? ContentCheckConfig =>
@@ -1363,6 +1422,7 @@ internal partial class DRK
         ScarletDelirium = 36928, // Under Enhanced Delirium
         Comeuppance = 36929, // Under Enhanced Delirium
         Torcleaver = 36930, // Under Enhanced Delirium
+        Shadowstride = 36926, // Dash, basically never
 
     #endregion
 

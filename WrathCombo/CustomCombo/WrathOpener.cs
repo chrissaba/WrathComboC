@@ -23,11 +23,14 @@ namespace WrathCombo.CustomComboNS
 
         private void UpdateOpener(Dalamud.Plugin.Services.IFramework framework)
         {
-            if (!Service.ActionReplacer.getActionHook.IsEnabled)
+            if (Service.Configuration.PerformanceMode)
             {
+                CurrentOpener = this;
                 uint _ = 0;
-                FullOpener(ref _);
+                CurrentOpener.FullOpener(ref _);
             }
+
+            
         }
 
         public void ProgressOpener(uint actionId)
@@ -73,7 +76,7 @@ namespace WrathCombo.CustomComboNS
                         else
                             Svc.Log.Information($"Opener Failed at step {OpenerStep}, {CurrentOpenerAction.ActionName()}");
 
-                        if (AllowReopener)
+                        if (AllowReopener || !InCombat())
                             ResetOpener();
                     }
 
@@ -173,8 +176,12 @@ namespace WrathCombo.CustomComboNS
 
                 if (OpenerStep > 1)
                 {
+                    bool prevStepSkipping = SkipSteps.FindFirst(x => x.Steps.FindFirst(y => y == OpenerStep  - 1, out var t), out var p);
+                    if (prevStepSkipping)
+                        prevStepSkipping = p.Condition();
+
                     bool delay = PrepullDelays.FindFirst(x => x.Steps.Any(y => y == DelayedStep && y == OpenerStep), out var hold);
-                    if ((!delay && InCombat() && ActionWatching.TimeSinceLastAction.TotalSeconds >= Service.Configuration.OpenerTimeout) || (delay && (DateTime.Now - DelayedAt).TotalSeconds > hold.HoldDelay() + Service.Configuration.OpenerTimeout))
+                    if ((!delay && !prevStepSkipping && ActionWatching.TimeSinceLastAction.TotalSeconds >= Service.Configuration.OpenerTimeout) || (delay && (DateTime.Now - DelayedAt).TotalSeconds > hold.HoldDelay() + Service.Configuration.OpenerTimeout))
                     {
                         CurrentState = OpenerState.FailedOpener;
                         return false;
@@ -301,11 +308,12 @@ namespace WrathCombo.CustomComboNS
                     Svc.Framework.Update -= currentOpener.UpdateOpener;
                     OnCastInterrupted -= RevertInterruptedCasts;
                     Svc.Condition.ConditionChange -= ResetAfterCombat;
-                    Svc.Log.Debug($"Removed update hook");
+                    Svc.Log.Debug($"Removed update hook {value.GetType()} {currentOpener.GetType()}");
                 }
 
                 if (currentOpener != value)
                 {
+                    Svc.Log.Debug($"Setting CurrentOpener");
                     currentOpener = value;
                     Svc.Framework.Update += currentOpener.UpdateOpener;
                     OnCastInterrupted += RevertInterruptedCasts;
