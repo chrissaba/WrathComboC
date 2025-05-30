@@ -236,7 +236,7 @@ namespace WrathCombo.Combos.PvP
                     }
 
                     // Grand Impact / Jolt III
-                    return hasGrandImpact || !isMoving ? OriginalHook(actionID) : All.SavageBlade;
+                    return hasGrandImpact || !isMoving ? OriginalHook(actionID) : OriginalHook(actionID);
                 }
 
                 return actionID;

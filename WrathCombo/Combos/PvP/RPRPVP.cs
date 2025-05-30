@@ -117,7 +117,7 @@ namespace WrathCombo.Combos.PvP
                             return PvPMelee.Smite;
 
                         // Harvest Moon Ranged Option
-                        if (IsEnabled(CustomComboPreset.RPRPvP_Burst_RangedHarvest) && distance > 5)
+                        if (IsEnabled(CustomComboPreset.RPRPvP_Burst_RangedHarvest) && distance > 5 && HasCharges(HarvestMoon))
                             return HarvestMoon;
 
                         // Enshroud
