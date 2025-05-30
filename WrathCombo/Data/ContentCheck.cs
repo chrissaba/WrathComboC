@@ -131,7 +131,7 @@ public class ContentCheck
     {
         get
         {
-            if (!EZ.Throttle("contentCheckInPVP", TS.FromSeconds(5)))
+            if (!EZ.Throttle("contentCheckInPVP", (int)TS.FromSeconds(5).TotalMilliseconds))
                 return field;
 
             field = (Content.ContentType is ContentType.OverWorld &&
@@ -148,7 +148,7 @@ public class ContentCheck
     {
         get
         {
-            if (!EZ.Throttle("contentCheckInSavagePlus", TS.FromSeconds(5)))
+            if (!EZ.Throttle("contentCheckInSavagePlus", (int)TS.FromSeconds(5).TotalMilliseconds))
                 return field;
 
             field = Content.ContentDifficulty is ContentDifficulty.Savage or

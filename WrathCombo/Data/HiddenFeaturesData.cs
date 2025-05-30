@@ -23,7 +23,7 @@ internal static class HiddenFeaturesData
     {
         get
         {
-            if (!EZ.Throttle("hiddenFeatEnabledLastCheck", TS.FromSeconds(5)))
+            if (!EZ.Throttle("hiddenFeatEnabledLastCheck", (int)TS.FromSeconds(5).TotalMilliseconds))
                 return field;
 
             field = Service.Configuration.ShowHiddenFeatures;
@@ -90,7 +90,7 @@ internal static class HiddenFeaturesData
                 }
 
                 if (!FeaturesEnabled ||
-                    !EZ.Throttle("hiddenFeatR6SSquirrelCheck", TS.FromSeconds(1)))
+                    !EZ.Throttle("hiddenFeatR6SSquirrelCheck", (int)TS.FromSeconds(1).TotalMilliseconds))
                     return field;
 
                 field = CurrentTarget?.Name.ToString()
@@ -111,7 +111,7 @@ internal static class HiddenFeaturesData
                 }
 
                 if (!FeaturesEnabled ||
-                    !EZ.Throttle("hiddenFeatR6SJabberCheck", TS.FromSeconds(1)))
+                    !EZ.Throttle("hiddenFeatR6SJabberCheck", (int)TS.FromSeconds(1).TotalMilliseconds))
                     return field;
 
                 field = CurrentTarget?.Name.ToString()
@@ -133,7 +133,7 @@ internal static class HiddenFeaturesData
 
                 if (!FeaturesEnabled ||
                     !EZ.Throttle("hiddenFeatR7SCircleCastingAddCheck",
-                        TS.FromSeconds(1)))
+                        (int)TS.FromSeconds(1).TotalMilliseconds))
                     return field;
 
                 // ReSharper disable once MergeCastWithTypeCheck
@@ -154,7 +154,7 @@ internal static class HiddenFeaturesData
             get
             {
                 if (!FeaturesEnabled ||
-                    !EZ.Throttle("hiddenFeatInR6SCheck", TS.FromSeconds(10)))
+                    !EZ.Throttle("hiddenFeatInR6SCheck", (int)TS.FromSeconds(10).TotalMilliseconds))
                     return field;
 
                 field = ContentInfo.ContentDifficulty == ContentDifficulty.Savage &&
@@ -168,7 +168,7 @@ internal static class HiddenFeaturesData
             get
             {
                 if (!FeaturesEnabled ||
-                    !EZ.Throttle("hiddenFeatInR7SCheck", TS.FromSeconds(10)))
+                    !EZ.Throttle("hiddenFeatInR7SCheck", (int)TS.FromSeconds(10).TotalMilliseconds))
                     return field;
 
                 field = ContentInfo.ContentDifficulty == ContentDifficulty.Savage &&

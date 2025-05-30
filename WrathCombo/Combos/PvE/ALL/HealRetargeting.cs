@@ -28,7 +28,8 @@ public static class HealRetargeting
     {
         get
         {
-            if (!EZ.Throttle("healRetargetingConfig", TS.FromSeconds(0.9)))
+            // Convert TimeSpan to milliseconds as int for EzThrottler
+            if (!EZ.Throttle("healRetargetingConfig", (int)TS.FromSeconds(0.9).TotalMilliseconds))
                 return field;
 
             field = Service.Configuration.RetargetHealingActionsToStack;

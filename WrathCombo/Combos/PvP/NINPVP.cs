@@ -151,7 +151,7 @@ namespace WrathCombo.Combos.PvP
 
                         // Seiton Tenchu priority for targets below 50% HP
                         if (IsEnabled(CustomComboPreset.NINPvP_ST_SeitonTenchu) && GetTargetHPPercent() < (Config.NINPVP_SeitonTenchu) &&
-                            (IsLB1Ready || HasStatusEffect(Buffs.SeitonUnsealed)) && EnemyHealthMaxHp() < 100000 && EnemyHealthCurrentHp() > 1)  // Limit Break or Unsealed buff
+                            (IsLB1Ready || HasStatusEffect(Buffs.SeitonUnsealed)) && EnemyHealthCurrentHp() < 100000 && EnemyHealthCurrentHp() > 1)  // Limit Break or Unsealed buff
                             return OriginalHook(SeitonTenchu);
 
                         //Smite

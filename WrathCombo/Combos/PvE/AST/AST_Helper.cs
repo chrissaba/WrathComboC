@@ -71,7 +71,7 @@ internal partial class AST
     {
         get
         {
-            if (!EZ.Throttle("astCardTargetCheck", TS.FromSeconds(0.1)))
+            if (!EZ.Throttle("astCardTargetCheck", (int)TS.FromSeconds(0.1).TotalMilliseconds))
                 return field;
 
             if (Svc.ClientState.LocalPlayer is null ||
@@ -103,7 +103,7 @@ internal partial class AST
                     return field = targetOverride;
             }
 
-            if (!EZ.Throttle("astCardPartyCheck", TS.FromSeconds(0.75)))
+            if (!EZ.Throttle("astCardPartyCheck", (int)TS.FromSeconds(0.75).TotalMilliseconds))
                 return field;
 
             var card = Gauge.DrawnCards[0];

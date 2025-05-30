@@ -23,7 +23,6 @@ namespace WrathCombo.Combos.PvP
             Smudge = 39210,
             TemperaCoat = 39211,
             SubtractivePalette = 39213,
-            Smudge = 39210,
             StarPrism = 39216,
             MogOfTheAges = 39782;
 

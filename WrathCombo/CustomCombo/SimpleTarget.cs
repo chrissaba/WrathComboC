@@ -156,7 +156,7 @@ internal static class SimpleTarget
                 (stack is StackOption.UserChosenHealStack &&
                  cfg.UseCustomHealStack))
             {
-                var logging = EZ.Throttle("customHealStackLog", TS.FromSeconds(10));
+                var logging = EZ.Throttle("customHealStackLog", (int)TS.FromSeconds(10).TotalMilliseconds);
 
                 foreach (var name in Service.Configuration.CustomHealStack)
                 {
@@ -189,7 +189,7 @@ internal static class SimpleTarget
             #region Raise Stack
             if (stack is StackOption.RaiseStack)
             {
-                var logging = EZ.Throttle("raiseStackLog", TS.FromSeconds(10));
+                var logging = EZ.Throttle("raiseStackLog", (int)TS.FromSeconds(10).TotalMilliseconds);
 
                 foreach (var name in Service.Configuration.RaiseStack)
                 {

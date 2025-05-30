@@ -93,7 +93,7 @@ public class ActionRetargeting : IDisposable
         var retarget = new Retargeting(action, replacedActions, resolver, dontCull);
 
         // Limit spam from the same actionID, mostly for debugging
-        if (!EZ.Throttle($"retargetFor{retarget.ID}", TS.FromSeconds(1)))
+        if (!EZ.Throttle($"retargetFor{retarget.ID}", (int)TS.FromSeconds(1).TotalMilliseconds))
             return action;
 
         #region Replace existing Retargets
@@ -140,7 +140,7 @@ public class ActionRetargeting : IDisposable
 
         // Save the Retarget
         var throttleTimespan = TS.FromSeconds(partialOverwrite ? 20 : 1);
-        if (EZ.Throttle($"retargetFor{retarget.Action}", throttleTimespan))
+        if (EZ.Throttle($"retargetFor{retarget.Action}", (int)throttleTimespan.TotalMilliseconds))
             log("registering", showAction: true,
                 messageAfterAction: "for Retargeting",
                 showResolver: true, retarget: retarget);
@@ -393,7 +393,7 @@ public class ActionRetargeting : IDisposable
             {
                 P.ActionRetargeting.RemoveRetarget(old.ID);
                 // Make sure not to spam if the same retarget is culled more than once
-                if (!EZ.Throttle($"retargetClr{old.ID}", TS.FromSeconds(3)))
+                if (!EZ.Throttle($"retargetClr{old.ID}", (int)TS.FromSeconds(3).TotalMilliseconds))
                     log("cleared old Retarget for", showAction: true, retarget: old);
             }
 
@@ -472,7 +472,7 @@ internal static class FuncIGameObjectExtensions
             .GetCustomAttributes(typeof(ActionRetargeting.TargetResolverAttribute), false)
             .Length > 0;
         if (!hasTargetResolverAttr &&
-            EZ.Throttle("retargetAttributeWarning", TS.FromSeconds(15)))
+            EZ.Throttle("retargetAttributeWarning", (int)TS.FromSeconds(15).TotalMilliseconds))
             PluginLog.Warning(
                 "[ActionRetargeting] Custom Target Resolver provided, " +
                 "but lacks the `TargetResolver` Attribute.\n" +

@@ -110,7 +110,7 @@ internal static class PvPCommon
 
         // Lists of Excluded skills 
         internal static readonly List<uint>
-            MovmentSkills = [WARPvP.Onslaught, NINPvP.Shukuchi, DNCPvP.EnAvant, MNKPvP.ThunderClap, RDMPvP.CorpsACorps, RDMPvP.Displacement, SGEPvP.Icarus, RPRPvP.HellsIngress, RPRPvP.Regress, BRDPvP.RepellingShot, BLMPvP.AetherialManipulation, DRGPvP.ElusiveJump, GNBPvP.RoughDivide,
+            MovmentSkills = [WARPvP.Onslaught, NINPvP.Shukuchi, DNCPvP.EnAvant, MNKPvP.Thunderclap, RDMPvP.CorpsACorps, RDMPvP.Displacement, SGEPvP.Icarus, RPRPvP.HellsIngress, RPRPvP.Regress, BRDPvP.RepellingShot, BLMPvP.AetherialManipulation, DRGPvP.ElusiveJump, GNBPvP.RoughDivide,
             GNBPvP.RelentlessRush, SAMPvP.Zantetsuken, RPRPvP.TenebraeLemurum, DRKPvP.Eventide, MCHPvP.MarksmanSpite, RDMPvP.SouthernCross, NINPvP.SeitonTenchu, NINPvP.Huton, NINPvP.Meisui, NINPvP.ThreeMudra, SGEPvP.Pneuma, SGEPvP.Mesotes, DRKPvP.BlackestNight,
             DRGPvP.HorridRoar, SAMPvP.Soten, SAMPvP.Chiten, MNKPvP.RiddleOfEarth, MNKPvP.EarthsReply, DNCPvP.CuringWaltz, DNCPvP.Contradance, PLDPvP.Phalanx, PLDPvP.HolySheltron, DRKPvP.Impalement, DRKPvP.SaltedEarth, DRKPvP.SaltAndDarkness, DRKPvP.Plunge, VPRPvP.Slither, VPRPvP.Backlash, VPRPvP.WorldSwallower, VPRPvP.SnakeScales, PCTPvP.Smudge, PCTPvP.HolyInWhite, PCTPvP.TemperaCoat, PCTPvP.StarPrism,
             PLDPvP.HolySpirit, PLDPvP.Guardian, PLDPvP.Intervene, WARPvP.Onslaught, WARPvP.PrimalRend, WARPvP.Bloodwhetting, WARPvP.Blota, WARPvP.PrimalScream, GNBPvP.RelentlessRush, GNBPvP.HeartOfCorundum, GNBPvP.FatedCircle, Recuperate, Sprint, Purify, StandardElixir, Teleport, RDMPvP.Forte, RDMPvP.Displacement, MCHPvP.BishopTurret, MCHPvP.Scattergun,
@@ -135,8 +135,7 @@ internal static class PvPCommon
                 }
 
             if (Execute() && InPvP() &&
-                !CommonActions.Contains(actionID) &&
-                !MovementActions.Contains(actionID))
+                !MovmentSkills.Contains(actionID))
                 return OriginalHook(Recuperate);
 
             return actionID;
@@ -183,8 +182,7 @@ internal static class PvPCommon
             }
 
             if (Execute() && InPvP() &&
-                !CommonActions.Contains(actionID) &&
-                !MovementActions.Contains(actionID))
+                !MovmentSkills.Contains(actionID))
                 return OriginalHook(Guard);
 
             return actionID;
@@ -239,8 +237,7 @@ internal static class PvPCommon
                         return OriginalHook(11); //execute the original action
                 }
 
-            if (Execute() && InPvP() &&
-                !CommonActions.Contains(actionID))
+            if (Execute() && InPvP())
                 return OriginalHook(Purify);
 
             return actionID;

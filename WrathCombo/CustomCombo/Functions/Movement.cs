@@ -25,7 +25,7 @@ namespace WrathCombo.CustomComboNS.Functions
             if (agentMap is null)
                 return false;
 
-            bool isMoving = agentMap->IsPlayerMoving || Player.IsJumping;
+            bool isMoving = agentMap->IsPlayerMoving || Player.Jumping;
 
             if (isMoving)
             {

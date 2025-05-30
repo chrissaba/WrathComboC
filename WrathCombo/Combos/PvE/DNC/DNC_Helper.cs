@@ -210,7 +210,7 @@ internal partial class DNC
     {
         get
         {
-            if (!EZ.Throttle("dncFeatPartnerDesiredCheck", TS.FromSeconds(7)))
+            if (!EZ.Throttle("dncFeatPartnerDesiredCheck", (int)TS.FromSeconds(7).TotalMilliseconds))
                 return field;
 
             field = TryGetDancePartner(out var partner, true)
