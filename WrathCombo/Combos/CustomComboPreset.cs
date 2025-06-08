@@ -6617,6 +6617,11 @@ SMN.JobID)]
     [Retargeted]
     WAR_Bloodwhetting_Targeting_TT = 18121,
 
+    [ReplaceSkill(WAR.Holmgang)]
+    [CustomComboInfo("Retarget Holmgang Feature", "Will Retarget Holmgang to yourself, instead of letting it go on enemies.", WAR.JobID)]
+    [Retargeted]
+    WAR_RetargetHolmgang = 18130,
+
     #region Bozja
     [Bozja]
     [CustomComboInfo("Lost Focus Option", "Use Lost Focus when available.", WAR.JobID)]
@@ -6802,7 +6807,7 @@ SMN.JobID)]
 
     #endregion
 
-    // Last value = 18121
+    // Last value = 18130
 
     #endregion
 
