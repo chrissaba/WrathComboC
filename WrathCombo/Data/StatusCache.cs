@@ -22,21 +22,30 @@ namespace WrathCombo.Data
         /// <returns> Status object or null. </returns>
         internal Status? GetStatus(uint statusID, IGameObject? obj, ulong? sourceID)
         {
-            if (obj is null) return null;
-            var key = (statusID, obj?.GameObjectId, sourceID);
+            if (obj is null)
+                return null;
+
+            var key = (statusID, obj.GameObjectId, sourceID);
+
             if (statusCache.TryGetValue(key, out Status? found))
                 return found;
-
-            if (obj is null)
-                return statusCache[key] = null;
 
             if (obj is not IBattleChara chara)
                 return statusCache[key] = null;
 
+            if (chara.StatusList == null)
+                return statusCache[key] = null;
+
             foreach (Status? status in chara.StatusList)
             {
-                if (status.StatusId == statusID && (!sourceID.HasValue || status.SourceId == 0 || status.SourceId == InvalidObjectID || status.SourceId == sourceID))
+                if (status == null)
+                    continue;
+
+                if (status.StatusId == statusID &&
+                    (!sourceID.HasValue || status.SourceId == 0 || status.SourceId == InvalidObjectID || status.SourceId == sourceID))
+                {
                     return statusCache[key] = status;
+                }
             }
 
             return statusCache[key] = null;

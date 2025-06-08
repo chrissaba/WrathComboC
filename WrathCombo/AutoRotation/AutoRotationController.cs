@@ -574,7 +574,7 @@ namespace WrathCombo.AutoRotation
 
                 var canUse = (canUseSelf || canUseTarget || areaTargeted) && (outAct.ActionType() is { } type && (type is ActionType.Ability || type is not ActionType.Ability && RemainingGCD == 0));
 
-                if ((canUse || cfg.DPSSettings.AlwaysSelectTarget) && !canUseSelf)
+                if ((canUse || cfg.DPSSettings.AlwaysSelectTarget))
                     Svc.Targets.Target = target;
 
                 var castTime = ActionManager.GetAdjustedCastTime(ActionType.Action, outAct);
@@ -614,6 +614,7 @@ namespace WrathCombo.AutoRotation
                     var customCombo = Service.ActionReplacer.CustomCombos.FirstOrDefault(x => x.Preset == preset);
                     if (customCombo != null)
                     {
+                        customCombo.OptionalTarget = null;
                         if (customCombo.TryInvoke(actToCheck, out var changedAct, optionalTarget))
                         {
                             originalAct = actToCheck;
