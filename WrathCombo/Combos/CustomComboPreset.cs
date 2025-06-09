@@ -56,6 +56,30 @@ public enum CustomComboPreset
         "Prevents the use of Reprisal when target already has the effect by replacing it with Savage Blade.", ADV.JobID)]
     ALL_Tank_Reprisal = 100001,
 
+    [Role(JobRole.Tank)]
+    [ReplaceSkill(RoleActions.Tank.Shirk)]
+    [ParentCombo(ALL_Tank_Menu)]
+    [CustomComboInfo("Tank: Shirk Retargeting",
+        "Retargets Shirk to the other tank if there is one.", ADV.JobID)]
+    [Retargeted]
+    ALL_Tank_ShirkRetargeting = 100002,
+
+    [Role(JobRole.Tank)]
+    [ReplaceSkill(RoleActions.Tank.Shirk)]
+    [ParentCombo(ALL_Tank_ShirkRetargeting)]
+    [CustomComboInfo("Use Healers instead",
+        "Will Retarget Shirk to healers, instead of the other tank.\nOnly recommended during some specific enrages.", ADV.JobID)]
+    [Retargeted]
+    ALL_Tank_ShirkRetargeting_Healer = 100003,
+
+    [Role(JobRole.Tank)]
+    [ReplaceSkill(RoleActions.Tank.Shirk)]
+    [ParentCombo(ALL_Tank_ShirkRetargeting)]
+    [CustomComboInfo("Fallback to Any Support",
+        "Will Retarget Shirk to tanks or healers, per your setting above, but will include a fallback to any tank OR healer if none of your setting is found.\nUseful to help your Shirk always go to *someone* even if your chosen players are not alive.", ADV.JobID)]
+    [Retargeted]
+    ALL_Tank_ShirkRetargeting_Fallback = 100004,
+
     #endregion
 
     #region Global Healer Features
@@ -77,6 +101,14 @@ public enum CustomComboPreset
     [CustomComboInfo("Retarget Raises", "Will Retarget the Raises affected here to your Heal Stack.", ADV.JobID)]
     [Retargeted]
     ALL_Healer_Raise_Retarget = 100011,
+
+    [Role(JobRole.Healer)]
+    [ReplaceSkill(RoleActions.Healer.Esuna)]
+    [ParentCombo(ALL_Healer_Menu)]
+    [CustomComboInfo("Healer: Esuna Retargeting",
+        "Retargets Esuna (outside of combo usage) to your Heal Stack, checking if each potential target in the stack has a cleansable debuff.", ADV.JobID)]
+    [Retargeted]
+    ALL_Healer_EsunaRetargeting = 100012,
 
     #endregion
 
@@ -488,10 +520,6 @@ public enum CustomComboPreset
     [ParentCombo(BLM_ST_AdvancedMode)]
     [CustomComboInfo("Foul/Xenoglossy Option", "Add Foul/Xenoglossy to the rotation.", BLM.JobID)]
     BLM_ST_UsePolyglot = 2104,
-
-    [ParentCombo(BLM_ST_UsePolyglot)]
-    [CustomComboInfo("Spend ASAP", "Use Foul/Xenoglossy whenever available.\nWill NOT save a proc for Movement!", BLM.JobID)]
-    BLM_ST_UsePolyglotAsap = 2117,
 
     [ParentCombo(BLM_ST_AdvancedMode)]
     [CustomComboInfo("Movement Option", "Add chosen options for movement.", BLM.JobID)]
@@ -1654,12 +1682,12 @@ public enum CustomComboPreset
     #region Blood
 
     [ParentCombo(DRK_ST_Spenders)]
-    [CustomComboInfo("Bloodspiller Option", "Adds Bloodspiller to the rotation when Delirium is active or well outside of burst.", DRK.JobID)]
+    [CustomComboInfo("Bloodspiller Option", "Adds Bloodspiller to the rotation when under Delirium, or just after Burst.", DRK.JobID)]
     DRK_ST_Sp_Bloodspiller = 5025,
 
     [ParentCombo(DRK_ST_Spenders)]
     [CustomComboInfo("Blood Gauge Overcap Option",
-        "Adds Bloodspiller to the rotation before Syphon Strike when the blood gauge is above the chosen threshold.", DRK.JobID)]
+        "Adds Bloodspiller to the rotation before Souleater when the blood gauge is above the chosen threshold.", DRK.JobID)]
     DRK_ST_Sp_BloodOvercap = 5026,
 
     #endregion
@@ -1808,7 +1836,7 @@ public enum CustomComboPreset
     #region Blood
 
     [ParentCombo(DRK_AoE_Spenders)]
-    [CustomComboInfo("Quietus Option", "Adds Quietus to the rotation when Delirium is active or well outside of burst.", DRK.JobID)]
+    [CustomComboInfo("Quietus Option", "Adds Quietus to the rotation when under Delirium, or just after Burst..", DRK.JobID)]
     DRK_AoE_Sp_Quietus = 5063,
 
     [ParentCombo(DRK_AoE_Spenders)]
@@ -1850,6 +1878,10 @@ public enum CustomComboPreset
     DRK_AoE_Mit_Reprisal = 5070,
 
     [ParentCombo(DRK_AoE_Mitigation)]
+    [CustomComboInfo("Dark Mind Option", "Adds Dark Mind to the rotation.", DRK.JobID)]
+    DRK_AoE_Mit_DarkMind = 5075,
+
+    [ParentCombo(DRK_AoE_Mitigation)]
     [CustomComboInfo("Rampart Option", "Adds Rampart to the rotation.", DRK.JobID)]
     DRK_AoE_Mit_Rampart = 5071,
 
@@ -1868,7 +1900,7 @@ public enum CustomComboPreset
     #endregion
 
     #endregion
-    // Last value = 5074
+    // Last value = 5075
 
     #region Basic combo
 
@@ -3975,8 +4007,12 @@ public enum CustomComboPreset
     PLD_ST_Interrupt = 11058,
 
     [ParentCombo(PLD_ST_AdvancedMode)]
-    [CustomComboInfo("Interrupt with Stun Option", "Adds Low Blow to the rotation when your target is casting.\nNot advised outside of overworld content, as it can waste a lot of Low Blows on un-stun-able enemies, etc. Will try to not use it in boss fights.", PLD.JobID)]
-    PLD_ST_Stun = 11062,
+    [CustomComboInfo("Interrupt with Low Blow Option", "Adds Low Blow to the rotation when your target is casting.\nNot advised outside of overworld content, as it can waste a lot of Low Blows on un-stun-able enemies, etc. Will try to not use it in boss fights.", PLD.JobID)]
+    PLD_ST_LowBlow = 11062,
+
+    [ParentCombo(PLD_ST_AdvancedMode)]
+    [CustomComboInfo("Interrupt with Shield Bash Option", "Adds Shield Bash to the rotation when your target is casting.\nNot advised outside of overworld content, as it can waste a lot of GCDs on un-stun-able enemies, etc. Will try to not use it in boss fights.", PLD.JobID)]
+    PLD_ST_ShieldBash = 11066,
 
     [ParentCombo(PLD_ST_AdvancedMode)]
     [CustomComboInfo("Fight or Flight Option",
@@ -4091,8 +4127,12 @@ public enum CustomComboPreset
     PLD_AoE_Interrupt = 11059,
 
     [ParentCombo(PLD_AoE_AdvancedMode)]
-    [CustomComboInfo("Interrupt with Stun Option", "Adds Low Blow or Shield Bash to the rotation when your target is casting, interruptible or not.", PLD.JobID)]
-    PLD_AoE_Stun = 11060,
+    [CustomComboInfo("Interrupt with Low Blow Option", "Adds Low Blow to the rotation when your target is casting, interruptible or not.", PLD.JobID)]
+    PLD_AoE_LowBlow = 11060,
+
+    [ParentCombo(PLD_AoE_AdvancedMode)]
+    [CustomComboInfo("Interrupt with Shield Bash Option", "Adds Shield Bash to the rotation when your target is casting, interruptible or not.", PLD.JobID)]
+    PLD_AoE_ShieldBash = 11065,
 
     [ParentCombo(PLD_AoE_AdvancedMode)]
     [CustomComboInfo("Fight or Flight Option",
@@ -5709,7 +5749,7 @@ public enum CustomComboPreset
 
     [AutoAction(false, false)]
     [ConflictingCombos(SMN_ST_Advanced_Combo)]
-    [ReplaceSkill(SMN.Ruin, SMN.Ruin2)]
+    [ReplaceSkill(SMN.Ruin, SMN.Ruin2, SMN.Ruin3)]
     [CustomComboInfo("Simple Mode - Single Target",
         "Replaces Ruin with a full one-button single target rotation.\nThis is the ideal option for newcomers to the job.",
         SMN.JobID)]
@@ -5727,7 +5767,7 @@ public enum CustomComboPreset
 
     #region Advanced ST
     [AutoAction(false, false)]
-    [ReplaceSkill(SMN.Ruin, SMN.Ruin2)]
+    [ReplaceSkill(SMN.Ruin, SMN.Ruin2, SMN.Ruin3)]
     [ConflictingCombos(SMN_ST_Simple_Combo)]
     [CustomComboInfo("Advanced Mode - Single Target",
         "Replaces Ruin with a full one-button single target rotation.\nThese features are ideal if you want to customize the rotation.",
@@ -5750,9 +5790,10 @@ public enum CustomComboPreset
     [CustomComboInfo("Rekindle Combo Option", "Adds Rekindle to the single target combo.", SMN.JobID)]
     SMN_ST_Advanced_Combo_DemiSummons_Rekindle = 17028,
 
-    [ParentCombo(SMN_ST_Advanced_Combo_DemiSummons_Attacks)]
-    [CustomComboInfo("Lux Solaris Combo Option", "Adds Lux Solaris to the single target combo.", SMN.JobID)]
-    SMN_ST_Advanced_Combo_DemiSummons_LuxSolaris = 17029,
+    [ParentCombo(SMN_ST_Advanced_Combo_DemiSummons_Rekindle)]
+    [CustomComboInfo("Retarget Rekindle Combo Option", "Will Retarget Rekindle to a tank that needs it, then a party member that need healing, before Self.", SMN.JobID)]
+    [Retargeted]
+    SMN_ST_Advanced_Combo_DemiSummons_Rekindle_Retarget = 17080,    
 
     [ParentCombo(SMN_ST_Advanced_Combo)]
     [CustomComboInfo("Summon Titan", "Adds Titan to the Single Target Rotation", SMN.JobID)]
@@ -5786,33 +5827,27 @@ public enum CustomComboPreset
 
     [ParentCombo(SMN_ST_Advanced_Combo)]
     [CustomComboInfo("Energy Attacks Combo Option",
-        "Adds Energy Drain and Fester to the single target combo.\nWill be used on cooldown.", SMN.JobID)]
+        "Adds Energy Drain and Fester to the single target combo.", SMN.JobID)]
     SMN_ST_Advanced_Combo_EDFester = 17014,
 
     [ParentCombo(SMN_ST_Advanced_Combo_EDFester)]
     [CustomComboInfo("Pooled oGCDs Option",
-        "Pools damage oGCDs for use inside the selected Demi phase while under the Searing Light buff.\nBahamut Burst becomes Solar Bahamut Burst at Lv100.",
+        "Pools damage oGCDs for use while under the Searing Light buff.",
         SMN.JobID)]
-    SMN_ST_Advanced_Combo_DemiEgiMenu_oGCDPooling = 17025,
-
-    [ParentCombo(SMN_ST_Advanced_Combo_DemiEgiMenu_oGCDPooling)]
-    [CustomComboInfo("Any Searing Burst Option",
-        "Checks for any Searing Light for bursting rather than just your own.\nUse this option if partied with multiple SMN and are worried about your Searing Light being wasted.",
-        SMN.JobID)]
-    SMN_ST_Advanced_Combo_Burst_Any_Option = 17044,
+    SMN_ST_Advanced_Combo_oGCDPooling = 17025,
 
     [ParentCombo(SMN_ST_Advanced_Combo)]
     [CustomComboInfo("Searing Light Combo Option",
-       "Adds Searing Light to the single target combo.\nWill be used on cooldown.", SMN.JobID)]
+       "Adds Searing Light to the single target combo.", SMN.JobID)]
     SMN_ST_Advanced_Combo_SearingLight = 17017,
 
     [ParentCombo(SMN_ST_Advanced_Combo_SearingLight)]
     [CustomComboInfo("Searing Light Burst Option",
-        "Casts Searing Light only during Demi phases.\nReflects Demi choice selected under 'Pooled oGCDs Option'.\nNot recommended for SpS Builds.",
+        "Casts Searing Light only during Demi phases.\nSpellspeed builds would turn this off.",
         SMN.JobID)]
     SMN_ST_Advanced_Combo_SearingLight_Burst = 17018,
 
-    [ParentCombo(SMN_ST_Advanced_Combo_SearingLight)]
+    [ParentCombo(SMN_ST_Advanced_Combo)]
     [CustomComboInfo("Searing Flash Combo Option", "Adds Searing Flash to the single target combo.", SMN.JobID)]
     SMN_ST_Advanced_Combo_SearingFlash = 17019,
 
@@ -5821,6 +5856,10 @@ public enum CustomComboPreset
         "Adds Ruin IV to the single target combo.\nUses when moving during Garuda Phase and you have no attunement, when moving during Ifrit phase, or when you have no active Egi or Demi summon.",
         SMN.JobID)]
     SMN_ST_Advanced_Combo_Ruin4 = 17011,
+
+    [ParentCombo(SMN_ST_Advanced_Combo)]
+    [CustomComboInfo("Lux Solaris Combo Option", "Adds Lux Solaris to the single target combo.", SMN.JobID)]
+    SMN_ST_Advanced_Combo_DemiSummons_LuxSolaris = 17029,
 
     [ParentCombo(SMN_ST_Advanced_Combo)]
     [CustomComboInfo("Radiant Aegis Option", "Will use Radiant Aegis, 30 second self shield, when at 2 charges to prevent waste ", SMN.JobID)]
@@ -5855,9 +5894,10 @@ public enum CustomComboPreset
     [CustomComboInfo("Rekindle Combo Option", "Adds Rekindle to the AoE combo.", SMN.JobID)]
     SMN_AoE_Advanced_Combo_DemiSummons_Rekindle = 17056,
 
-    [ParentCombo(SMN_AoE_Advanced_Combo_DemiSummons_Attacks)]
-    [CustomComboInfo("Lux Solaris Combo Option", "Adds Lux Solaris to the AoE combo.", SMN.JobID)]
-    SMN_AoE_Advanced_Combo_DemiSummons_LuxSolaris = 17059,
+    [ParentCombo(SMN_AoE_Advanced_Combo_DemiSummons_Rekindle)]
+    [CustomComboInfo("Retarget Rekindle Combo Option", "Will Retarget Rekindle to a tank that needs it, then a party member that need healing, before Self.", SMN.JobID)]
+    [Retargeted]
+    SMN_AoE_Advanced_Combo_DemiSummons_Rekindle_Retarget = 17081,    
 
     [ParentCombo(SMN_AoE_Advanced_Combo)]
     [CustomComboInfo("Summon Titan", "Adds Titan to the AoE Rotation", SMN.JobID)]
@@ -5885,33 +5925,27 @@ public enum CustomComboPreset
 
     [ParentCombo(SMN_AoE_Advanced_Combo)]
     [CustomComboInfo("Energy Attacks Combo Option",
-        "Adds Energy Siphon and Painflare to the AoE combo.\nWill be used on cooldown.", SMN.JobID)]
+        "Adds Energy Siphon and Painflare to the AoE combo.", SMN.JobID)]
     SMN_AoE_Advanced_Combo_ESPainflare = 17051,
 
     [ParentCombo(SMN_AoE_Advanced_Combo_ESPainflare)]
     [CustomComboInfo("Pooled oGCDs Option",
-        "Pools damage oGCDs for use inside the selected Demi phase while under the Searing Light buff.\nBahamut Burst becomes Solar Bahamut Burst at Lv100.",
+        "Pools damage oGCDs for use inside the Searing Light buff",
         SMN.JobID)]
-    SMN_AoE_Advanced_Combo_DemiEgiMenu_oGCDPooling = 17050,
-
-    [ParentCombo(SMN_AoE_Advanced_Combo_DemiEgiMenu_oGCDPooling)]
-    [CustomComboInfo("Any Searing Burst Option",
-"Checks for any Searing Light for bursting rather than just your own.\nUse this option if partied with multiple SMN and are worried about your Searing Light being wasted.",
-SMN.JobID)]
-    SMN_AoE_Advanced_Combo_Burst_Any_Option = 17069,
+    SMN_AoE_Advanced_Combo_oGCDPooling = 17050,    
 
     [ParentCombo(SMN_AoE_Advanced_Combo)]
-    [CustomComboInfo("Searing Light Combo Option", "Adds Searing Light to the AoE combo.\nWill be used on cooldown.",
+    [CustomComboInfo("Searing Light Combo Option", "Adds Searing Light to the AoE combo.",
         SMN.JobID)]
     SMN_AoE_Advanced_Combo_SearingLight = 17053,
 
     [ParentCombo(SMN_AoE_Advanced_Combo_SearingLight)]
     [CustomComboInfo("Searing Light Burst Option",
-        "Casts Searing Light only during Demi phases.\nReflects Demi choice selected under 'Pooled oGCDs Option'.\nNot recommended for SpS Builds.",
+        "Casts Searing Light only during Demi phases.\nSpellspeed Builds would turn this off.",
         SMN.JobID)]
     SMN_AoE_Advanced_Combo_SearingLight_Burst = 17054,
 
-    [ParentCombo(SMN_AoE_Advanced_Combo_SearingLight)]
+    [ParentCombo(SMN_AoE_Advanced_Combo)]
     [CustomComboInfo("Searing Flash Combo Option", "Adds Searing Flash to the AoE combo.", SMN.JobID)]
     SMN_AoE_Advanced_Combo_SearingFlash = 17058,
 
@@ -5922,28 +5956,17 @@ SMN.JobID)]
     SMN_AoE_Advanced_Combo_Ruin4 = 17062,
 
     [ParentCombo(SMN_AoE_Advanced_Combo)]
+    [CustomComboInfo("Lux Solaris Combo Option", "Adds Lux Solaris to the AoE combo.", SMN.JobID)]
+    SMN_AoE_Advanced_Combo_DemiSummons_LuxSolaris = 17059,
+
+    [ParentCombo(SMN_AoE_Advanced_Combo)]
     [CustomComboInfo("Radiant Aegis Option", "Will use Radiant Aegis, 30 second self shield, when at 2 charges to prevent waste ", SMN.JobID)]
     SMN_AoE_Advanced_Combo_Radiant = 17070,
 
     [ParentCombo(SMN_AoE_Advanced_Combo)]
     [CustomComboInfo("Lucid Dreaming Option", "Adds Lucid Dreaming to the AoE combo when MP falls below the set value.",
         SMN.JobID)]
-    SMN_AoE_Advanced_Combo_Lucid = 17060,
-
-    
-
-
-   
-
-   
-
-     
-
-    
-
-    
-
-    
+    SMN_AoE_Advanced_Combo_Lucid = 17060,    
     #endregion
 
     #region Standalone Features
@@ -7019,9 +7042,19 @@ SMN.JobID)]
     WHM_AoEHeals_DivineCaress = 19207,
 
     [ParentCombo(WHM_AoEHeals)]
-    [CustomComboInfo("Asylum Option", "Adds Asylum placement, when standing still, to the rotation.\nWill Retarget it onto a friendly focus target, soft target, hard target, and fallback to placing it at your feet.", WHM.JobID)]
+    [CustomComboInfo("Asylum Option", "Adds Asylum placement, when standing still, to the rotation.\nWill Retarget it onto yourself.", WHM.JobID)]
     [Retargeted]
     WHM_AoEHeals_Asylum = 19028,
+
+    [ParentCombo(WHM_AoEHeals_Asylum)]
+    [CustomComboInfo("Enemy Placement Option", "Will add an enemy hard target as the top priority Retarget for Asylum.", WHM.JobID)]
+    [Retargeted]
+    WHM_AoEHeals_Asylum_Enemy = 19030,
+
+    [ParentCombo(WHM_AoEHeals_Asylum)]
+    [CustomComboInfo("Ally Placement Option", "Will add any ally UI MouseOver target, focus target, soft target, or hard target as the priority Retarget for Asylum.\nBeneath the Enemy placement option, but above yourself.", WHM.JobID)]
+    [Retargeted]
+    WHM_AoEHeals_Asylum_Allies = 19031,
 
     #endregion
 
