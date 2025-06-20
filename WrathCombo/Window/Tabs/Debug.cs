@@ -498,7 +498,7 @@ internal class Debug : ConfigWindow, IDisposable
                 {
                     CustomStyleText("Health:", $"{member.CurrentHP:N0} / {member.BattleChara.MaxHp:N0} ({MathF.Round(member.CurrentHP * 100f / member.BattleChara.MaxHp, 2)}%)");
                     CustomStyleText("MP:", $"{member.CurrentMP:N0} / {member.BattleChara.MaxMp:N0}");
-                    CustomStyleText("Job:", $"{member.BattleChara.ClassJob.Value.NameEnglish} (ID: {member.BattleChara.ClassJob.RowId})");
+                    CustomStyleText("Job:", $"{member.RealJob?.NameEnglish} (ID: {member.RealJob?.RowId})");
                     CustomStyleText("Dead Timer:", TimeSpentDead(member.BattleChara.GameObjectId));
 
                     if (ImGui.TreeNode("Data Dump"))
@@ -778,8 +778,9 @@ internal class Debug : ConfigWindow, IDisposable
                 CustomStyleText("Action Status:", $"{actionStatus} ({Svc.Data.GetExcelSheet<LogMessage>().GetRow(actionStatus).Text})");
                 CustomStyleText("Action Type:", _debugSpell.Value.ActionCategory.Value.Name);
 
-                if (_debugSpell.Value.UnlockLink.RowId != 0)
-                    CustomStyleText("Quest:", $"{Svc.Data.GetExcelSheet<Quest>().GetRow(_debugSpell.Value.UnlockLink.RowId).Name} ({(UIState.Instance()->IsUnlockLinkUnlockedOrQuestCompleted(_debugSpell.Value.UnlockLink.RowId) ? "Completed" : "Not Completed")})");
+                // Quest Check
+                if (_debugSpell.Value.UnlockLink.RowId != 0 && Svc.Data.GetExcelSheet<Quest>().TryGetRow(_debugSpell.Value.UnlockLink.RowId, out var unlockQuest))
+                    CustomStyleText("Quest:", $"{unlockQuest.Name} ({(UIState.Instance()->IsUnlockLinkUnlockedOrQuestCompleted(_debugSpell.Value.UnlockLink.RowId) ? "Completed" : "Not Completed")})");
 
                 CustomStyleText("Base Recast:", $"{_debugSpell.Value.Recast100ms / 10f}s");
                 CustomStyleText("Original Hook:", OriginalHook(_debugSpell.Value.RowId).ActionName());

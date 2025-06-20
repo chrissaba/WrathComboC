@@ -89,7 +89,7 @@ internal partial class WAR : Tank
                 return OtherAction;
             #region Stuns
             if (IsEnabled(CustomComboPreset.WAR_ST_Interrupt)
-                && HiddenFeaturesData.IsEnabledWith( // Only interrupt circle adds in 7
+                && HiddenFeaturesData.NonBlockingIsEnabledWith( // Only interrupt circle adds in 7
                     CustomComboPreset.WAR_Hid_R7SCircleCastOnly,
                     () => HiddenFeaturesData.Content.InR7S,
                     () => HiddenFeaturesData.Targeting.R7SCircleCastingAdd)
@@ -259,7 +259,7 @@ internal partial class WAR : Tank
 
             if (IsEnabled(CustomComboPreset.WAR_AoE_Interrupt) && Role.CanInterject())
                 return Role.Interject;
-            if (IsEnabled(CustomComboPreset.WAR_AoE_Stun) && !JustUsed(Role.Interject) && Role.CanLowBlow() && HiddenFeaturesData.IsEnabledWith( // Only stun the jabber, if in 6
+            if (IsEnabled(CustomComboPreset.WAR_AoE_Stun) && !JustUsed(Role.Interject) && Role.CanLowBlow() && HiddenFeaturesData.NonBlockingIsEnabledWith( // Only stun the jabber, if in 6
                     CustomComboPreset.WAR_Hid_R6SStunJabberOnly,
                     () => HiddenFeaturesData.Content.InR6S,
                     () => HiddenFeaturesData.Targeting.R6SJabber))
@@ -360,7 +360,7 @@ internal partial class WAR : Tank
         protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.WAR_FC_Features;
         protected override uint Invoke(uint action)
         {
-            if (action is not InnerBeast or FellCleave)
+            if (action is not (InnerBeast or FellCleave))
                 return action;
             if (IsEnabled(CustomComboPreset.WAR_FC_InnerRelease) && ShouldUseInnerRelease(Config.WAR_FC_IRStop))
                 return OriginalHook(Berserk);
@@ -419,35 +419,32 @@ internal partial class WAR : Tank
     }
     #endregion
 
-    #region Bloodwhetting -> Nascent Flash or Raw Intuition
-    internal class WAR_Bloodwhetting : CustomCombo
+    #region Raw Intuition -> Nascent Flash
+    internal class WAR_RawIntuition_Targeting : CustomCombo
     {
-        protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.WAR_Bloodwhetting;
+        protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.WAR_RawIntuition_Targeting;
 
         protected override uint Invoke(uint action)
         {
-            if (action != Bloodwhetting)
+            if (action is not (RawIntuition or Bloodwhetting))
                 return action;
-
+            
             var target =
-                (IsEnabled(CustomComboPreset.WAR_Bloodwhetting_Targeting_MO)
-                    ? SimpleTarget.UIMouseOverTarget.IfFriendly()
+                //Mouseover Retarget
+                (IsEnabled(CustomComboPreset.WAR_RawIntuition_Targeting_MO)
+                    ? SimpleTarget.UIMouseOverTarget.IfNotThePlayer().IfInParty()
                     : null) ??
-                SimpleTarget.HardTarget.IfFriendly() ??
-                (IsEnabled(CustomComboPreset.WAR_Bloodwhetting_Targeting_TT) && !PlayerHasAggro
-                    ? SimpleTarget.TargetsTarget.IfFriendly().IfNotThePlayer()
+                //Hard Target
+                SimpleTarget.HardTarget.IfInParty().IfNotThePlayer() ??
+                //Target's Target Retarget
+                (IsEnabled(CustomComboPreset.WAR_RawIntuition_Targeting_TT) && !PlayerHasAggro
+                    ? SimpleTarget.TargetsTarget.IfInParty().IfNotThePlayer()
                     : null);
 
             // Nascent if trying to heal an ally
-            if (IsEnabled(CustomComboPreset.WAR_Bloodwhetting_Targeting) &&
-                LevelChecked(NascentFlash) &&
+            if (ActionReady(NascentFlash) &&
                 target != null)
-                return NascentFlash.Retarget(Bloodwhetting, target);
-
-            // Raw Intuition if too low for Bloodwhetting, and not trying to heal an ally
-            if (!LevelChecked(Bloodwhetting) &&
-                LevelChecked(RawIntuition))
-                return RawIntuition;
+                return NascentFlash.Retarget([RawIntuition , Bloodwhetting], target);
 
             return action;
         }

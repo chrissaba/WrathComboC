@@ -7,7 +7,7 @@ internal partial class RPR : Melee
 {
     internal class RPR_ST_BasicCombo : CustomCombo
     {
-        protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.RPR_ST_BasicCombo;
+        protected internal override CustomComboPreset Preset => CustomComboPreset.RPR_ST_BasicCombo;
 
         protected override uint Invoke(uint actionID)
         {
@@ -29,7 +29,7 @@ internal partial class RPR : Melee
 
     internal class RPR_ST_SimpleMode : CustomCombo
     {
-        protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.RPR_ST_SimpleMode;
+        protected internal override CustomComboPreset Preset => CustomComboPreset.RPR_ST_SimpleMode;
 
         protected override uint Invoke(uint actionID)
         {
@@ -55,7 +55,7 @@ internal partial class RPR : Melee
             if (CanWeave() && !HasDoubleWeaved())
             {
                 //Arcane Cirlce
-                if (ActionReady(ArcaneCircle) && InBossEncounter() &&
+                if (ActionReady(ArcaneCircle) &&
                     (LevelChecked(Enshroud) && JustUsed(ShadowOfDeath) ||
                      !LevelChecked(Enshroud)))
                     return ArcaneCircle;
@@ -92,9 +92,7 @@ internal partial class RPR : Melee
                 if (HasStatusEffect(Buffs.Enshrouded))
                 {
                     //Sacrificium
-                    if (Lemure <= 4 && HasStatusEffect(Buffs.Oblatio) &&
-                        (InBossEncounter() && GetCooldownRemainingTime(ArcaneCircle) > GCD * 3 && !JustUsed(ArcaneCircle, 2) ||
-                         !InBossEncounter() && IsOffCooldown(ArcaneCircle)))
+                    if (Lemure <= 4 && HasStatusEffect(Buffs.Oblatio))
                         return OriginalHook(Gluttony);
 
                     //Lemure's Slice
@@ -197,7 +195,7 @@ internal partial class RPR : Melee
 
     internal class RPR_ST_AdvancedMode : CustomCombo
     {
-        protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.RPR_ST_AdvancedMode;
+        protected internal override CustomComboPreset Preset => CustomComboPreset.RPR_ST_AdvancedMode;
 
         protected override uint Invoke(uint actionID)
         {
@@ -407,7 +405,7 @@ internal partial class RPR : Melee
 
     internal class RPR_AoE_SimpleMode : CustomCombo
     {
-        protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.RPR_AoE_SimpleMode;
+        protected internal override CustomComboPreset Preset => CustomComboPreset.RPR_AoE_SimpleMode;
 
         protected override uint Invoke(uint actionID)
         {
@@ -506,7 +504,7 @@ internal partial class RPR : Melee
 
     internal class RPR_AoE_AdvancedMode : CustomCombo
     {
-        protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.RPR_AoE_AdvancedMode;
+        protected internal override CustomComboPreset Preset => CustomComboPreset.RPR_AoE_AdvancedMode;
 
         protected override uint Invoke(uint actionID)
         {
@@ -622,7 +620,7 @@ internal partial class RPR : Melee
 
     internal class RPR_GluttonyBloodSwathe : CustomCombo
     {
-        protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.RPR_GluttonyBloodSwathe;
+        protected internal override CustomComboPreset Preset => CustomComboPreset.RPR_GluttonyBloodSwathe;
 
         protected override uint Invoke(uint actionID)
         {
@@ -765,7 +763,7 @@ internal partial class RPR : Melee
 
     internal class RPR_ArcaneCirclePlentifulHarvest : CustomCombo
     {
-        protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.RPR_ArcaneCirclePlentifulHarvest;
+        protected internal override CustomComboPreset Preset => CustomComboPreset.RPR_ArcaneCirclePlentifulHarvest;
 
         protected override uint Invoke(uint actionID) =>
             actionID is ArcaneCircle &&
@@ -777,7 +775,7 @@ internal partial class RPR : Melee
 
     internal class RPR_Regress : CustomCombo
     {
-        protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.RPR_Regress;
+        protected internal override CustomComboPreset Preset => CustomComboPreset.RPR_Regress;
 
         protected override uint Invoke(uint actionID) =>
             actionID is HellsEgress or HellsIngress &&
@@ -788,7 +786,7 @@ internal partial class RPR : Melee
 
     internal class RPR_Soulsow : CustomCombo
     {
-        protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.RPR_Soulsow;
+        protected internal override CustomComboPreset Preset => CustomComboPreset.RPR_Soulsow;
 
         protected override uint Invoke(uint actionID)
         {
@@ -813,7 +811,7 @@ internal partial class RPR : Melee
 
     internal class RPR_EnshroudProtection : CustomCombo
     {
-        protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.RPR_EnshroudProtection;
+        protected internal override CustomComboPreset Preset => CustomComboPreset.RPR_EnshroudProtection;
 
         protected override uint Invoke(uint actionID)
         {
@@ -846,7 +844,7 @@ internal partial class RPR : Melee
 
     internal class RPR_CommunioOnGGG : CustomCombo
     {
-        protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.RPR_CommunioOnGGG;
+        protected internal override CustomComboPreset Preset => CustomComboPreset.RPR_CommunioOnGGG;
 
         protected override uint Invoke(uint actionID)
         {
@@ -883,7 +881,7 @@ internal partial class RPR : Melee
 
     internal class RPR_EnshroudCommunio : CustomCombo
     {
-        protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.RPR_EnshroudCommunio;
+        protected internal override CustomComboPreset Preset => CustomComboPreset.RPR_EnshroudCommunio;
 
         protected override uint Invoke(uint actionID)
         {

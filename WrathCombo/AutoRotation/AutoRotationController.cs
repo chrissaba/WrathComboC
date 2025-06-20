@@ -560,7 +560,7 @@ namespace WrathCombo.AutoRotation
                 bool switched = SwitchOnDChole(attributes, outAct, ref target);
 
                 var canUseSelf = ActionManager.CanUseActionOnTarget(outAct, Player.GameObject);
-                var blockedSelfBuffs = outAct is NIN.Ten or NIN.Chi or NIN.Jin or NIN.TenCombo or NIN.ChiCombo or NIN.JinCombo or DNC.StandardStep or DNC.TechnicalStep or MCH.Reassemble or SAM.MeikyoShisui;
+                var blockedSelfBuffs = GetCooldown(outAct).CooldownTotal >= 5;
 
                 if (cfg.InCombatOnly && NotInCombat && !(canUseSelf && cfg.BypassBuffs && !blockedSelfBuffs))
                     return false;
