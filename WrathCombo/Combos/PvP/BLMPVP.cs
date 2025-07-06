@@ -249,12 +249,10 @@ namespace WrathCombo.Combos.PvP
                     if (hasParadox && ((isParadoxPrimed && !hasResonance) || (hasAstralFire && isMoving)))
                         return OriginalHook(Paradox);
 
-
                     // Basic Spells
                     return isMovingAdjusted && Config.BLMPVP_BurstButtonOption == 0
                         ? OriginalHook(Blizzard)
                         : OriginalHook(actionID);
-
 
                 }
 

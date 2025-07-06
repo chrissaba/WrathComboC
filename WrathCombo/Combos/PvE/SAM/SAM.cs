@@ -97,14 +97,17 @@ internal partial class SAM : Melee
 
             //Meikyo to start before combat
             if (!HasStatusEffect(Buffs.MeikyoShisui) && ActionReady(MeikyoShisui) &&
-                !InCombat() && TargetIsHostile())
+                !InCombat() && HasBattleTarget())
                 return MeikyoShisui;
 
             if (Variant.CanCure(CustomComboPreset.SAM_Variant_Cure, SAM_VariantCure))
                 return Variant.Cure;
 
-            if (Variant.CanRampart(CustomComboPreset.SAM_Variant_Rampart, WeaveTypes.Weave))
+            if (Variant.CanRampart(CustomComboPreset.SAM_Variant_Rampart))
                 return Variant.Rampart;
+
+            if (OccultCrescent.ShouldUsePhantomActions())
+                return OccultCrescent.BestPhantomAction();
 
             if (ActionReady(Enpi) &&
                 !InMeleeRange() &&
@@ -266,14 +269,17 @@ internal partial class SAM : Melee
                 IsEnabled(CustomComboPreset.SAM_ST_CDs_MeikyoShisui) &&
                 ActionReady(MeikyoShisui) &&
                 !HasStatusEffect(Buffs.MeikyoShisui) &&
-                !InCombat() && TargetIsHostile())
+                !InCombat() && HasBattleTarget())
                 return MeikyoShisui;
 
             if (Variant.CanCure(CustomComboPreset.SAM_Variant_Cure, SAM_VariantCure))
                 return Variant.Cure;
 
-            if (Variant.CanRampart(CustomComboPreset.SAM_Variant_Rampart, WeaveTypes.Weave))
+            if (Variant.CanRampart(CustomComboPreset.SAM_Variant_Rampart))
                 return Variant.Rampart;
+
+            if (OccultCrescent.ShouldUsePhantomActions())
+                return OccultCrescent.BestPhantomAction();
 
             if (IsEnabled(CustomComboPreset.SAM_ST_RangedUptime) &&
                 ActionReady(Enpi) && !InMeleeRange() && HasBattleTarget())
@@ -505,6 +511,9 @@ internal partial class SAM : Melee
             if (Variant.CanRampart(CustomComboPreset.SAM_Variant_Rampart))
                 return Variant.Rampart;
 
+            if (OccultCrescent.ShouldUsePhantomActions())
+                return OccultCrescent.BestPhantomAction();
+
             //oGCD Features
             if (CanWeave() && !HasDoubleWeaved() && M6SReady)
             {
@@ -611,6 +620,9 @@ internal partial class SAM : Melee
 
             if (Variant.CanRampart(CustomComboPreset.SAM_Variant_Rampart))
                 return Variant.Rampart;
+
+            if (OccultCrescent.ShouldUsePhantomActions())
+                return OccultCrescent.BestPhantomAction();
 
             //oGCD Features
             if (CanWeave() && !HasDoubleWeaved() && M6SReady)

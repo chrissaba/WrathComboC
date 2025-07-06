@@ -2,6 +2,7 @@
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.ClientState.Statuses;
 using System.Linq;
+using WrathCombo.Combos.PvE.Content;
 using WrathCombo.Core;
 using WrathCombo.CustomComboNS;
 using WrathCombo.Data;
@@ -83,6 +84,9 @@ internal partial class AST : Healer
 
                 return actionID;
             }
+
+            if (OccultCrescent.ShouldUsePhantomActions())
+                return OccultCrescent.BestPhantomAction();
 
             //In combat
             if (InCombat())
@@ -213,6 +217,9 @@ internal partial class AST : Healer
             if (Variant.CanSpiritDart(CustomComboPreset.AST_Variant_SpiritDart))
                 return Variant.SpiritDart;
 
+            if (OccultCrescent.ShouldUsePhantomActions())
+                return OccultCrescent.BestPhantomAction();
+
             if (IsEnabled(CustomComboPreset.AST_AOE_LightSpeed) &&
                 ActionReady(Lightspeed) &&
                 GetTargetHPPercent() > Config.AST_AOE_LightSpeedOption &&
@@ -224,7 +231,7 @@ internal partial class AST : Healer
                 return Lightspeed;            
 
             if (IsEnabled(CustomComboPreset.AST_AOE_Lucid) &&
-                Role.CanLucidDream(Config.AST_LucidDreaming))
+                Role.CanLucidDream(Config.AST_AOE_LucidDreaming))
                 return Role.LucidDreaming;
 
             //Play Card with Pooling
@@ -323,7 +330,6 @@ internal partial class AST : Healer
             bool hasHealthOppose = Config.AST_AoE_SimpleHeals_CelestialOppositionThreshold >= GetPartyAvgHPPercent();
             bool hasHealthSect = Config.AST_AoE_SimpleHeals_NeutralSectThreshold >= GetPartyAvgHPPercent();
 
-
             if (!LevelChecked(AspectedHelios)) //Level check to return helios immediately below 40
                 return Helios;
 
@@ -391,9 +397,6 @@ internal partial class AST : Healer
             bool startHot = Config.AST_ST_SimpleHeals_AspectedBeneficHigh >= GetTargetHPPercent(healTarget, Config.AST_ST_SimpleHeals_IncludeShields);
             bool stopHot = Config.AST_ST_SimpleHeals_AspectedBeneficLow <= GetTargetHPPercent(healTarget, Config.AST_ST_SimpleHeals_IncludeShields);
             int refreshTime = Config.AST_ST_SimpleHeals_AspectedBeneficRefresh;
-
-            //Grab our target
-
 
             if (IsEnabled(CustomComboPreset.AST_ST_SimpleHeals_Esuna) && ActionReady(Role.Esuna) &&
                 GetTargetHPPercent(healTarget, Config.AST_ST_SimpleHeals_IncludeShields) >= Config.AST_ST_SimpleHeals_Esuna &&

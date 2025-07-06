@@ -32,8 +32,6 @@ namespace WrathCombo.Combos.PvP
             Drakesbane = 41449,
             SkyHigh = 29497,
             Starcross = 41450;
-
-
         public static class Buffs
         {
             public const ushort
@@ -133,7 +131,7 @@ namespace WrathCombo.Combos.PvP
                     {
                         if (IsEnabled(CustomComboPreset.DRGPvP_ChaoticSpringSustain) && PlayerHealthPercentageHp() < Config.DRGPvP_CS_HP_Threshold) // Chaotic Spring as a self heal option, it does not break combos of other skills
                             return ChaoticSpring;
-                        if (IsEnabled(CustomComboPreset.DRGPvP_ChaoticSpringExecute) && EnemyHealthCurrentHp() <= 8000) // Chaotic Spring Execute
+                        if (IsEnabled(CustomComboPreset.DRGPvP_ChaoticSpringExecute) && GetTargetCurrentHP() <= 8000) // Chaotic Spring Execute
                             return ChaoticSpring;
                     }
                   

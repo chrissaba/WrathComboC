@@ -387,7 +387,6 @@ public partial class Leasing
         Logging.Log(
             $"{registration.PluginName}: Registering Current Job ({job}) ...");
 
-
         bool locking;
         var combos = Helper.GetCombosToSetJobAutoRotationReady(job, false)!;
         var options = Helper.GetCombosToSetJobAutoRotationReady(job)!;

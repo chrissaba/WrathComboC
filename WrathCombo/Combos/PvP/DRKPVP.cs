@@ -45,7 +45,6 @@ namespace WrathCombo.Combos.PvP
                 ShadowbringerThreshold = new("ShadowbringerThreshold"),
                 DRKPvP_RampartThreshold = new("DRKPvP_RampartThreshold");
 
-
             internal static void Draw(CustomComboPreset preset)
             {
                 switch (preset)

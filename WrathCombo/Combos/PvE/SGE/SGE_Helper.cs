@@ -1,43 +1,46 @@
 ﻿using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.ClientState.Statuses;
+using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using WrathCombo.CustomComboNS;
 using WrathCombo.CustomComboNS.Functions;
+using static WrathCombo.Combos.PvE.SGE.Config;
 using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
 namespace WrathCombo.Combos.PvE;
 
 internal partial class SGE
 {
-    // Sage Gauge & Extensions
+    internal static Status? DosisDebuff =>
+        GetStatusEffect(DosisList[OriginalHook(Dosis)], CurrentTarget);
 
-    internal static readonly List<uint>
-        AddersgallList = [Taurochole, Druochole, Ixochole, Kerachole],
-        DyskrasiaList = [Dyskrasia, Dyskrasia2];
-    internal static readonly Dictionary<uint, (uint Eukrasian, ushort DebuffID)>
-        DosisList = new()
-        {
-            { Dosis,  (EukrasianDosis,  Debuffs.EukrasianDosis)  },
-            { Dosis2, (EukrasianDosis2, Debuffs.EukrasianDosis2) },
-            { Dosis3, (EukrasianDosis3, Debuffs.EukrasianDosis3) }
-        };
-    internal static SGEOpenerMaxLevel1 Opener1 = new();
-    internal static SGEGauge Gauge = GetJobGauge<SGEGauge>();
+    internal static Status? DyskrasiaDebuff =>
+        GetStatusEffect(Debuffs.EukrasianDyskrasia, CurrentTarget);
 
-    internal static bool HasAddersgall() => Gauge.Addersgall > 0;
+    internal static bool MaxPhlegma =>
+        GetRemainingCharges(OriginalHook(Phlegma)) == GetMaxCharges(OriginalHook(Phlegma));
 
-    internal static bool HasAddersting() => Gauge.Addersting > 0;
+    internal static bool HasAddersgall() =>
+        Addersgall > 0;
 
-    internal static WrathOpener Opener()
-    {
-        if (Opener1.LevelChecked)
-            return Opener1;
+    internal static bool HasAddersting() =>
+        Addersting > 0;
 
-        return WrathOpener.Dummy;
-    }
+    #region Healing
+
+    #region ST
 
     internal static int GetMatchingConfigST(int i, IGameObject? optionalTarget, out uint action, out bool enabled)
     {
-        var healTarget = optionalTarget ?? SimpleTarget.Stack.AllyToHeal;
+        IGameObject? healTarget = optionalTarget ?? SimpleTarget.Stack.AllyToHeal;
+
+        bool shieldCheck = !SGE_ST_Heal_EDiagnosisOpts[0] ||
+                           !HasStatusEffect(Buffs.EukrasianDiagnosis, healTarget, true) ||
+                           !HasStatusEffect(Buffs.EukrasianPrognosis, healTarget, true);
+
+        bool scholarShieldCheck = !SGE_ST_Heal_EDiagnosisOpts[1] ||
+                                  !HasStatusEffect(SCH.Buffs.Galvanize);
 
         switch (i)
         {
@@ -45,13 +48,13 @@ internal partial class SGE
                 action = Soteria;
                 enabled = IsEnabled(CustomComboPreset.SGE_ST_Heal_Soteria);
 
-                return Config.SGE_ST_Heal_Soteria;
+                return SGE_ST_Heal_Soteria;
 
             case 1:
                 action = Zoe;
                 enabled = IsEnabled(CustomComboPreset.SGE_ST_Heal_Zoe);
 
-                return Config.SGE_ST_Heal_Zoe;
+                return SGE_ST_Heal_Zoe;
 
             case 2:
                 action = Pepsis;
@@ -59,40 +62,39 @@ internal partial class SGE
                 enabled = IsEnabled(CustomComboPreset.SGE_ST_Heal_Pepsis) &&
                           HasStatusEffect(Buffs.EukrasianDiagnosis, healTarget);
 
-                return Config.SGE_ST_Heal_Pepsis;
+                return SGE_ST_Heal_Pepsis;
 
             case 3:
                 action = Taurochole;
                 enabled = IsEnabled(CustomComboPreset.SGE_ST_Heal_Taurochole) && HasAddersgall();
 
-                return Config.SGE_ST_Heal_Taurochole;
+                return SGE_ST_Heal_Taurochole;
 
             case 4:
                 action = Haima;
                 enabled = IsEnabled(CustomComboPreset.SGE_ST_Heal_Haima);
 
-                return Config.SGE_ST_Heal_Haima;
+                return SGE_ST_Heal_Haima;
 
             case 5:
                 action = Krasis;
                 enabled = IsEnabled(CustomComboPreset.SGE_ST_Heal_Krasis);
 
-                return Config.SGE_ST_Heal_Krasis;
+                return SGE_ST_Heal_Krasis;
 
             case 6:
                 action = Druochole;
                 enabled = IsEnabled(CustomComboPreset.SGE_ST_Heal_Druochole) && HasAddersgall();
 
-                return Config.SGE_ST_Heal_Druochole;
+                return SGE_ST_Heal_Druochole;
 
             case 7:
                 action = Eukrasia;
-                enabled = (IsEnabled(CustomComboPreset.SGE_ST_Heal_EDiagnosis) &&
-                          (Config.SGE_ST_Heal_EDiagnosisOpts[0] || // Ignore Any Shield check
-                           !HasStatusEffect(Buffs.EukrasianDiagnosis, healTarget, true) && //Shield Check
-                           (!Config.SGE_ST_Heal_EDiagnosisOpts[1] || !HasStatusEffect(SCH.Buffs.Galvanize, healTarget, true)))); //Galvanize Check
+                enabled = IsEnabled(CustomComboPreset.SGE_ST_Heal_EDiagnosis) &&
+                          GetTargetHPPercent(healTarget, SGE_ST_Heal_IncludeShields) <= SGE_ST_Heal_EDiagnosisHP &&
+                          shieldCheck && scholarShieldCheck;
 
-                return Config.SGE_ST_Heal_EDiagnosisHP;
+                return SGE_ST_Heal_EDiagnosisHP;
         }
 
         enabled = false;
@@ -101,59 +103,68 @@ internal partial class SGE
         return 0;
     }
 
+    #endregion
+
+    #region AoE
+
     internal static int GetMatchingConfigAoE(int i, out uint action, out bool enabled)
     {
+        bool shieldCheck = GetPartyBuffPercent(Buffs.EukrasianPrognosis) <= SGE_AoE_Heal_EPrognosisOption &&
+                           GetPartyBuffPercent(SCH.Buffs.Galvanize) <= SGE_AoE_Heal_EPrognosisOption;
+
+        bool anyPanhaima = !SGE_ST_Heal_PanhaimaOpts[0] ||
+                           !HasStatusEffect(Buffs.Panhaima, null, true);
         switch (i)
         {
             case 0:
                 action = Kerachole;
                 enabled = IsEnabled(CustomComboPreset.SGE_AoE_Heal_Kerachole) &&
-                          (!Config.SGE_AoE_Heal_KeracholeTrait ||
-                           Config.SGE_AoE_Heal_KeracholeTrait && TraitLevelChecked(Traits.EnhancedKerachole)) &&
+                          (!SGE_AoE_Heal_KeracholeTrait ||
+                           SGE_AoE_Heal_KeracholeTrait && TraitLevelChecked(Traits.EnhancedKerachole)) &&
                           HasAddersgall();
-                return Config.SGE_AoE_Heal_KeracholeOption;
+                return SGE_AoE_Heal_KeracholeOption;
 
             case 1:
                 action = Ixochole;
                 enabled = IsEnabled(CustomComboPreset.SGE_AoE_Heal_Ixochole) &&
                           HasAddersgall();
-                return Config.SGE_AoE_Heal_IxocholeOption;
+                return SGE_AoE_Heal_IxocholeOption;
 
             case 2:
                 action = OriginalHook(Physis);
                 enabled = IsEnabled(CustomComboPreset.SGE_AoE_Heal_Physis);
-                return Config.SGE_AoE_Heal_PhysisOption;
+                return SGE_AoE_Heal_PhysisOption;
 
             case 3:
                 action = Holos;
                 enabled = IsEnabled(CustomComboPreset.SGE_AoE_Heal_Holos);
-                return Config.SGE_AoE_Heal_HolosOption;
+                return SGE_AoE_Heal_HolosOption;
 
             case 4:
                 action = Panhaima;
-                enabled = IsEnabled(CustomComboPreset.SGE_AoE_Heal_Panhaima);
-                return Config.SGE_AoE_Heal_PanhaimaOption;
+                enabled = IsEnabled(CustomComboPreset.SGE_AoE_Heal_Panhaima) && anyPanhaima;
+                return SGE_AoE_Heal_PanhaimaOption;
 
             case 5:
                 action = Pepsis;
                 enabled = IsEnabled(CustomComboPreset.SGE_AoE_Heal_Pepsis) &&
                           HasStatusEffect(Buffs.EukrasianPrognosis);
-                return Config.SGE_AoE_Heal_PepsisOption;
+                return SGE_AoE_Heal_PepsisOption;
 
             case 6:
                 action = Philosophia;
                 enabled = IsEnabled(CustomComboPreset.SGE_AoE_Heal_Philosophia);
-                return Config.SGE_AoE_Heal_PhilosophiaOption;
+                return SGE_AoE_Heal_PhilosophiaOption;
 
             case 7:
                 action = Zoe;
                 enabled = IsEnabled(CustomComboPreset.SGE_AoE_Heal_Zoe);
-                return Config.SGE_AoE_Heal_ZoeOption;
+                return SGE_AoE_Heal_ZoeOption;
 
             case 8:
                 action = Eukrasia;
                 enabled = IsEnabled(CustomComboPreset.SGE_AoE_Heal_EPrognosis)
-                          && GetPartyBuffPercent(Buffs.EukrasianDiagnosis) + GetPartyBuffPercent(Buffs.EukrasianPrognosis) <= Config.SGE_AoE_Heal_EPrognosisOption;
+                          && shieldCheck;
                 return 100; //Don't HP Check
         }
 
@@ -162,7 +173,62 @@ internal partial class SGE
         return 0;
     }
 
-    internal class SGEOpenerMaxLevel1 : WrathOpener
+    #endregion
+
+    #endregion
+
+    #region Movement Prio
+
+    private static (uint Action, CustomComboPreset Preset, System.Func<bool> Logic)[]
+        PrioritizedMovement =>
+    [
+        //Toxikon
+        (OriginalHook(Toxikon), CustomComboPreset.SGE_ST_DPS_Movement,
+            () => SGE_ST_DPS_Movement[0] &&
+                  ActionReady(Toxikon) &&
+                  HasAddersting()),
+        // Dyskrasia
+        (OriginalHook(Dyskrasia), CustomComboPreset.SGE_ST_DPS_Movement,
+            () => SGE_ST_DPS_Movement[1] &&
+                  ActionReady(Dyskrasia) &&
+                  InActionRange(Dyskrasia)),
+        //Eukrasia
+        (Eukrasia, CustomComboPreset.SGE_ST_DPS_Movement,
+            () => SGE_ST_DPS_Movement[2] &&
+                  ActionReady(Eukrasia) &&
+                  !HasStatusEffect(Buffs.Eukrasia))
+    ];
+
+    private static bool CheckMovementConfigMeetsRequirements
+        (int index, out uint action)
+    {
+        action = PrioritizedMovement[index].Action;
+        return ActionReady(action) && LevelChecked(action) &&
+               PrioritizedMovement[index].Logic() &&
+               IsEnabled(PrioritizedMovement[index].Preset);
+    }
+
+    #endregion
+
+    #region Openers
+
+    internal static WrathOpener Opener()
+    {
+        if (ToxikonOpener.LevelChecked &&
+            SGE_SelectedOpener == 0)
+            return ToxikonOpener;
+
+        if (PneumaOpener.LevelChecked &&
+            SGE_SelectedOpener == 1)
+            return PneumaOpener;
+
+        return WrathOpener.Dummy;
+    }
+
+    internal static SGEToxikonOpener ToxikonOpener = new();
+    internal static SGEPneumaOpener PneumaOpener = new();
+
+    internal class SGEToxikonOpener : WrathOpener
     {
         public override int MinOpenerLevel => 92;
 
@@ -170,8 +236,8 @@ internal partial class SGE
 
         public override List<uint> OpenerActions { get; set; } =
         [
-            Eukrasia,
             Toxikon2,
+            Eukrasia,
             EukrasianDosis3,
             Dosis3,
             Dosis3,
@@ -189,22 +255,87 @@ internal partial class SGE
             Dosis3,
             Dosis3
         ];
-        internal override UserData ContentCheckConfig => Config.SGE_Balance_Content;
 
-        public override bool HasCooldowns()
-        {
-            if (GetRemainingCharges(Phlegma3) < 2)
-                return false;
+        public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
+        [
+            ([2], () => HasStatusEffect(Buffs.Eukrasia))
+        ];
 
-            if (!IsOffCooldown(Psyche))
-                return false;
+        internal override UserData ContentCheckConfig => SGE_Balance_Content;
 
-            if (!HasAddersting())
-                return false;
-
-            return true;
-        }
+        public override bool HasCooldowns() =>
+            GetRemainingCharges(Phlegma3) is 2 &&
+            IsOffCooldown(Psyche) &&
+            HasAddersting();
     }
+
+    internal class SGEPneumaOpener : WrathOpener
+    {
+        public override int MinOpenerLevel => 92;
+
+        public override int MaxOpenerLevel => 109;
+
+        public override List<uint> OpenerActions { get; set; } =
+        [
+            Pneuma,
+            Eukrasia,
+            EukrasianDosis3,
+            Dosis3,
+            Dosis3,
+            Dosis3,
+            Phlegma3,
+            Psyche,
+            Phlegma3,
+            Dosis3,
+            Dosis3,
+            Dosis3,
+            Dosis3,
+            Eukrasia,
+            EukrasianDosis3,
+            Dosis3,
+            Dosis3,
+            Dosis3
+        ];
+
+        public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
+        [
+            ([2], () => HasStatusEffect(Buffs.Eukrasia))
+        ];
+
+
+        internal override UserData ContentCheckConfig => SGE_Balance_Content;
+
+        public override bool HasCooldowns() =>
+            GetRemainingCharges(Phlegma3) is 2 &&
+            IsOffCooldown(Psyche) &&
+            IsOffCooldown(Pneuma);
+    }
+
+    #endregion
+
+    #region Gauge
+
+    internal static SGEGauge Gauge = GetJobGauge<SGEGauge>();
+
+    internal static byte Addersgall => Gauge.Addersgall;
+
+    internal static byte Addersting => Gauge.Addersting;
+
+    internal static readonly List<uint>
+        AddersgallList = [Taurochole, Druochole, Ixochole, Kerachole],
+        DyskrasiaList = [Dyskrasia, Dyskrasia2];
+
+    internal static readonly FrozenDictionary<uint, ushort> DosisList = new Dictionary<uint, ushort>
+    {
+        { Dosis, Debuffs.EukrasianDosis },
+        { Dosis2, Debuffs.EukrasianDosis2 },
+        { Dosis3, Debuffs.EukrasianDosis3 },
+        { EukrasianDosis, Debuffs.EukrasianDosis },
+        { EukrasianDosis2, Debuffs.EukrasianDosis2 },
+        { EukrasianDosis3, Debuffs.EukrasianDosis3 }
+    }.ToFrozenDictionary();
+
+    #endregion
 
     #region ID's
 

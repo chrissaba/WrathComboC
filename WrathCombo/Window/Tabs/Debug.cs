@@ -252,6 +252,14 @@ internal class Debug : ConfigWindow, IDisposable
                     // Print
                     CustomStyleText(firstColumn, secondColumn, useMonofont: true);
                 }
+
+                if (ImGui.CollapsingHeader("ICD Tracker"))
+                {
+                    foreach (var t in ICDTracker.Trackers.Where(x => x.GameObjectId == chara.GameObjectId))
+                    {
+                        CustomStyleText($"{((ushort)t.StatusID).StatusName()}", $"{t.TimeUntilExpired():mm\\:ss}");
+                    }
+                }
             }
         }
 
@@ -357,7 +365,7 @@ internal class Debug : ConfigWindow, IDisposable
         {
             if (target is not null) { 
             CustomStyleText("Name:", target?.Name);
-            CustomStyleText("Health:", $"{EnemyHealthCurrentHp():N0} / {GetTargetMaxHP():N0} ({MathF.Round(GetTargetHPPercent(), 2)}%)");
+            CustomStyleText("Health:", $"{GetTargetCurrentHP():N0} / {GetTargetMaxHP():N0} ({MathF.Round(GetTargetHPPercent(), 2)}%)");
             CustomStyleText("Distance:", $"{MathF.Round(GetTargetDistance(), 2)}y");
             CustomStyleText("Hitbox Radius:", target?.HitboxRadius);
             CustomStyleText("In Melee Range:", InMeleeRange());
@@ -784,7 +792,7 @@ internal class Debug : ConfigWindow, IDisposable
 
                 CustomStyleText("Base Recast:", $"{_debugSpell.Value.Recast100ms / 10f}s");
                 CustomStyleText("Original Hook:", OriginalHook(_debugSpell.Value.RowId).ActionName());
-                CustomStyleText("Cooldown Total:", $"{ActionManager.Instance()->GetRecastTime(ActionType.Action, _debugSpell.Value.RowId)}");
+                CustomStyleText("Cooldown Total:", $"{GetCooldown(_debugSpell.Value.RowId).CooldownTotal}");
                 CustomStyleText("Current Cooldown:", GetCooldown(_debugSpell.Value.RowId).CooldownRemaining);
                 CustomStyleText("Current Cast Time:", ActionManager.GetAdjustedCastTime(ActionType.Action, _debugSpell.Value.RowId));
                 CustomStyleText("Max Charges:", $"{_debugSpell.Value.MaxCharges}");

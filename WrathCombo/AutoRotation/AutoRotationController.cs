@@ -38,15 +38,25 @@ namespace WrathCombo.AutoRotation
 
         static DateTime? TimeToHeal;
 
-        static Func<WrathPartyMember, bool> RezQuery => x => x.BattleChara.IsDead && !HasStatusEffect(2648, x.BattleChara, true) && !HasStatusEffect(148, x.BattleChara, true) && x.BattleChara.IsTargetable && TimeSpentDead(x.BattleChara.GameObjectId).TotalSeconds > 2 && GetTargetDistance(x.BattleChara) <= 30;
+        const float QueryRange = 30f;
+
+        static Func<WrathPartyMember, bool> RezQuery => x =>
+            x.BattleChara is not null &&
+            x.BattleChara.IsDead &&
+            x.BattleChara.IsTargetable &&
+            (!cfg.HealerSettings.AutoRezOutOfParty || GetPartyMembers().Any(y => y.GameObjectId == x.BattleChara.GameObjectId)) &&
+            GetTargetDistance(x.BattleChara) <= QueryRange &&
+            !HasStatusEffect(2648, x.BattleChara, true) && // Transcendent Effect
+            !HasStatusEffect(148, x.BattleChara, true) && // Raise Effect
+            TimeSpentDead(x.BattleChara.GameObjectId).TotalSeconds > 2;
 
         public static bool LockedST
         {
             get => _lockedST;
             set
             {
-                if (_lockedST != value)
-                    Svc.Log.Debug($"Locked ST updated to {value}");
+                //if (_lockedST != value)
+                //    Svc.Log.Debug($"Locked ST updated to {value}");
 
                 _lockedST = value;
             }
@@ -56,8 +66,8 @@ namespace WrathCombo.AutoRotation
             get => _lockedAoE;
             set
             {
-                if (_lockedAoE != value)
-                    Svc.Log.Debug($"Locked AoE updated to {value}");
+                //if (_lockedAoE != value)
+                //    Svc.Log.Debug($"Locked AoE updated to {value}");
 
                 _lockedAoE = value;
             }
@@ -138,7 +148,7 @@ namespace WrathCombo.AutoRotation
                 return;
 
             // Healer cleanse/rez logic
-            if (isHealer || (Player.Job is Job.SMN or Job.RDM && cfg.HealerSettings.AutoRezDPSJobs))
+            if (isHealer || (Player.Job is Job.SMN or Job.RDM && cfg.HealerSettings.AutoRezDPSJobs) || OccultCrescent.IsEnabledAndUsable(CustomComboPreset.Phantom_Chemist_Revive, OccultCrescent.Revive))
             {
                 if (!needsHeal)
                 {
@@ -199,7 +209,7 @@ namespace WrathCombo.AutoRotation
                     continue;
 
                 var outAct = OriginalHook(AutoRotationHelper.InvokeCombo(entry.Preset, attributes, ref _));
-                if (!CanQueue(outAct))
+                if (!CanQueue(outAct) && outAct is not All.SavageBlade)
                     continue;
 
                 if (action.IsHeal)
@@ -244,11 +254,11 @@ namespace WrathCombo.AutoRotation
 
             if (regenSpell != 0 && !JustUsed(regenSpell, 4) && Svc.Targets.FocusTarget != null && (!HasStatusEffect(regenBuff, out var regen, Svc.Targets.FocusTarget) || regen?.RemainingTime <= 5f))
             {
-                var query = Svc.Objects.Where(x => !x.IsDead && x.IsHostile() && x.IsTargetable);
+                var query = Svc.Objects.Where(x => !x.IsDead && x.IsTargetable && x.IsHostile());
                 if (!query.Any())
                     return;
 
-                if (query.Min(x => GetTargetDistance(x, Svc.Targets.FocusTarget)) <= 30)
+                if (query.Min(x => GetTargetDistance(x, Svc.Targets.FocusTarget)) <= QueryRange)
                 {
                     var spell = ActionManager.Instance()->GetAdjustedActionId(regenSpell);
 
@@ -269,15 +279,21 @@ namespace WrathCombo.AutoRotation
 
         private static void RezParty()
         {
-            uint resSpell = Player.Job switch
+            uint resSpell = 
+                OccultCrescent.IsEnabledAndUsable(CustomComboPreset.Phantom_Chemist_Revive, OccultCrescent.Revive) 
+                ? OccultCrescent.Revive 
+                : Player.Job switch
             {
                 Job.CNJ or Job.WHM => WHM.Raise,
                 Job.SCH or Job.SMN => SCH.Resurrection,
                 Job.AST => AST.Ascend,
                 Job.SGE => SGE.Egeiro,
                 Job.RDM => RDM.Verraise,
-                _ => throw new NotImplementedException(),
+                _ => 0,
             };
+
+            if (resSpell == 0)
+                return;
 
             if (ActionManager.Instance()->QueuedActionId == resSpell)
                 ActionManager.Instance()->QueuedActionId = 0;
@@ -288,8 +304,13 @@ namespace WrathCombo.AutoRotation
                 if ((ActionWatching.TimeSinceLastSuccessfulCast(resSpell) != -1f && timeSinceLastRez.TotalSeconds < 4) || Player.Object.IsCasting())
                     return;
 
-                if (GetPartyMembers().Where(RezQuery).FindFirst(x => x is not null, out var member))
+                if (DeadPeople.Where(RezQuery).FindFirst(x => x is not null, out var member))
                 {
+                    if (resSpell == OccultCrescent.Revive)
+                    {
+                        ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
+                    }
+
                     if (Player.Job is Job.RDM)
                     {
                         if (ActionReady(RoleActions.Magic.Swiftcast) && !HasStatusEffect(RDM.Buffs.Dualcast))
@@ -504,6 +525,7 @@ namespace WrathCombo.AutoRotation
                     }
 
                     uint outAct = OriginalHook(InvokeCombo(preset, attributes, ref gameAct));
+                    if (outAct is All.SavageBlade) return true;
                     if (!CanQueue(outAct)) return false;
                     if (!ActionReady(outAct))
                         return false;
@@ -559,7 +581,10 @@ namespace WrathCombo.AutoRotation
 
                 bool switched = SwitchOnDChole(attributes, outAct, ref target);
 
-                var canUseSelf = ActionManager.CanUseActionOnTarget(outAct, Player.GameObject);
+                var canUseSelf = NIN.MudraSigns.Contains(outAct)
+                    ? target is not null && target.IsHostile()
+                    : ActionManager.CanUseActionOnTarget(outAct, Player.GameObject);
+
                 var blockedSelfBuffs = GetCooldown(outAct).CooldownTotal >= 5;
 
                 if (cfg.InCombatOnly && NotInCombat && !(canUseSelf && cfg.BypassBuffs && !blockedSelfBuffs))
@@ -569,8 +594,13 @@ namespace WrathCombo.AutoRotation
                     return false;
 
                 var areaTargeted = Svc.Data.GetExcelSheet<Action>().GetRow(outAct).TargetArea;
-                var canUseTarget = target is null ? false : ActionManager.CanUseActionOnTarget(outAct, target.Struct());
-                var inRange = target is null && canUseSelf ? true : target is null ? false : IsInLineOfSight(target) && InActionRange(outAct, target);
+                var canUseTarget = target is not null && ActionManager.CanUseActionOnTarget(outAct, target.Struct());
+
+                var inRange = target is null
+                    ? canUseSelf
+                    : IsInLineOfSight(target) && (NIN.MudraSigns.Contains(outAct)
+                        ? GetTargetDistance(target) <= 20f
+                        : InActionRange(outAct, target));
 
                 var canUse = (canUseSelf || canUseTarget || areaTargeted) && (outAct.ActionType() is { } type && (type is ActionType.Ability || type is not ActionType.Ability && RemainingGCD == 0));
 
@@ -598,8 +628,17 @@ namespace WrathCombo.AutoRotation
             {
                 if (outAct is SGE.Druochole && !attributes.AutoAction!.IsHeal)
                 {
-                    if (GetPartyMembers().Where(x => !x.BattleChara.IsDead && x.BattleChara.IsTargetable && IsInLineOfSight(x.BattleChara) && GetTargetDistance(x.BattleChara) < 30).OrderBy(x => GetTargetHPPercent(x.BattleChara)).Select(x => x.BattleChara).TryGetFirst(out newtarget))
+                    if (GetPartyMembers()
+                        .Where(x => !x.BattleChara.IsDead &&
+                            x.BattleChara.IsTargetable &&
+                            GetTargetDistance(x.BattleChara) <= QueryRange &&
+                            IsInLineOfSight(x.BattleChara))
+                        .OrderBy(x => GetTargetHPPercent(x.BattleChara))
+                        .Select(x => x.BattleChara)
+                        .TryGetFirst(out newtarget))
+                    {
                         return true;
+                    }
                 }
 
                 return false;
@@ -629,11 +668,21 @@ namespace WrathCombo.AutoRotation
 
         public class DPSTargeting
         {
-            private static bool Query(IGameObject x) => x is IBattleChara chara && chara.IsHostile() && IsInRange(chara, cfg.DPSSettings.MaxDistance) && GetTargetHeightDifference(chara) <= cfg.DPSSettings.MaxDistance && !chara.IsDead && chara.IsTargetable && IsInLineOfSight(chara) && !TargetIsInvincible(chara) && !Service.Configuration.IgnoredNPCs.Any(x => x.Key == chara.DataId) &&
-                ((cfg.DPSSettings.OnlyAttackInCombat && chara.Struct()->InCombat) || !cfg.DPSSettings.OnlyAttackInCombat);
-            public static IEnumerable<IGameObject> BaseSelection => Svc.Objects.Any(x => Query(x) && IsPriority(x)) ?
-                                                                    Svc.Objects.Where(x => Query(x) && IsPriority(x)) :
-                                                                    Svc.Objects.Where(x => Query(x));
+            private static bool Query(IGameObject x) =>
+                x is IBattleChara chara &&
+                !chara.IsDead &&
+                chara.IsTargetable &&
+                chara.IsHostile() &&
+                IsInRange(chara, cfg.DPSSettings.MaxDistance) &&
+                GetTargetHeightDifference(chara) <= cfg.DPSSettings.MaxDistance &&
+                !TargetIsInvincible(chara) &&
+                !Service.Configuration.IgnoredNPCs.ContainsKey(chara.DataId) &&
+                ((cfg.DPSSettings.OnlyAttackInCombat && chara.Struct()->InCombat) || !cfg.DPSSettings.OnlyAttackInCombat) &&
+                IsInLineOfSight(chara);
+
+            public static IEnumerable<IGameObject> BaseSelection => Svc.Objects.Any(x => Query(x) && IsPriority(x))
+                                                                        ? Svc.Objects.Where(x => Query(x) && IsPriority(x))
+                                                                        : Svc.Objects.Where(x => Query(x));
 
             private static bool IsPriority(IGameObject x)
             {
@@ -687,7 +736,7 @@ namespace WrathCombo.AutoRotation
             {
                 return BaseSelection
                     .OrderByDescending(x => IsCombatPriority(x))
-                    .ThenBy(x => x is IBattleChara chara ? chara.CurrentHp : 0)
+                    .ThenBy(x => GetTargetCurrentHP(x))
                     .FirstOrDefault();
             }
 
@@ -695,7 +744,7 @@ namespace WrathCombo.AutoRotation
             {
                 return BaseSelection
                     .OrderByDescending(x => IsCombatPriority(x))
-                    .ThenByDescending(x => x is IBattleChara chara ? chara.CurrentHp : 0)
+                    .ThenByDescending(x => GetTargetCurrentHP(x))
                     .FirstOrDefault();
             }
 
@@ -704,7 +753,7 @@ namespace WrathCombo.AutoRotation
 
                 return BaseSelection
                     .OrderByDescending(x => IsCombatPriority(x))
-                    .ThenBy(x => x is IBattleChara chara ? chara.MaxHp : 0)
+                    .ThenBy(x => GetTargetMaxHP(x))
                     .ThenBy(x => GetTargetHPPercent(x))
                     .ThenBy(x => GetTargetDistance(x))
                     .FirstOrDefault();
@@ -714,7 +763,7 @@ namespace WrathCombo.AutoRotation
             {
                 return BaseSelection
                     .OrderByDescending(x => IsCombatPriority(x))
-                    .ThenByDescending(x => x is IBattleChara chara ? chara.MaxHp : 0)
+                    .ThenByDescending(x => GetTargetMaxHP(x))
                     .ThenBy(x => GetTargetHPPercent(x))
                     .FirstOrDefault();
             }
@@ -737,7 +786,11 @@ namespace WrathCombo.AutoRotation
             {
                 if (GetPartyMembers().Count == 0) return Player.Object;
                 var target = GetPartyMembers()
-                    .Where(x => IsInLineOfSight(x.BattleChara) && GetTargetDistance(x.BattleChara) <= 30 && !x.BattleChara.IsDead && x.BattleChara.IsTargetable && GetTargetHPPercent(x.BattleChara) <= (TargetHasRegen(x.BattleChara) ? cfg.HealerSettings.SingleTargetRegenHPP : cfg.HealerSettings.SingleTargetHPP))
+                    .Where(x => !x.BattleChara.IsDead &&
+                        x.BattleChara.IsTargetable &&
+                        GetTargetDistance(x.BattleChara) <= QueryRange &&
+                        GetTargetHPPercent(x.BattleChara) <= (TargetHasRegen(x.BattleChara) ? cfg.HealerSettings.SingleTargetRegenHPP : cfg.HealerSettings.SingleTargetHPP) &&
+                        IsInLineOfSight(x.BattleChara))
                     .OrderByDescending(x => GetTargetHPPercent(x.BattleChara)).FirstOrDefault();
                 return target?.BattleChara;
             }
@@ -746,7 +799,11 @@ namespace WrathCombo.AutoRotation
             {
                 if (GetPartyMembers().Count == 0) return Player.Object;
                 var target = GetPartyMembers()
-                    .Where(x => IsInLineOfSight(x.BattleChara) && GetTargetDistance(x.BattleChara) <= 30 && !x.BattleChara.IsDead && x.BattleChara.IsTargetable && ((float)x.CurrentHP / x.BattleChara.MaxHp * 100) <= (TargetHasRegen(x.BattleChara) ? cfg.HealerSettings.SingleTargetRegenHPP : cfg.HealerSettings.SingleTargetHPP))
+                    .Where(x => !x.BattleChara.IsDead &&
+                        x.BattleChara.IsTargetable &&
+                        GetTargetDistance(x.BattleChara) <= QueryRange &&
+                        GetTargetHPPercent(x.BattleChara) <= (TargetHasRegen(x.BattleChara) ? cfg.HealerSettings.SingleTargetRegenHPP : cfg.HealerSettings.SingleTargetHPP) &&
+                        IsInLineOfSight(x.BattleChara))
                     .OrderBy(x => GetTargetHPPercent(x.BattleChara)).FirstOrDefault();
                 return target?.BattleChara;
             }
@@ -758,11 +815,12 @@ namespace WrathCombo.AutoRotation
                 {
                     var members = GetPartyMembers()
                         .Where(x => x.BattleChara is not null &&
-                            !x.BattleChara.IsDead && x.BattleChara.IsTargetable &&
+                            !x.BattleChara.IsDead &&
+                            x.BattleChara.IsTargetable &&
                             (outAct == 0
-                                ? GetTargetDistance(x.BattleChara) <= 15
+                                ? GetTargetDistance(x.BattleChara) <= 15f
                                 : InActionRange(outAct, x.BattleChara)) &&
-                            ((float)x.CurrentHP / x.BattleChara.MaxHp * 100) <= cfg.HealerSettings.AoETargetHPP);
+                            GetTargetHPPercent(x.BattleChara) <= cfg.HealerSettings.AoETargetHPP);
                     memberCount = members.Count();
                 }
                 catch { memberCount = 0; }
@@ -792,7 +850,7 @@ namespace WrathCombo.AutoRotation
                 return DPSTargeting.BaseSelection
                     .OrderByDescending(x => DPSTargeting.IsCombatPriority(x))
                     .ThenByDescending(x => x.TargetObject?.GameObjectId != Player.Object?.GameObjectId)
-                    .ThenBy(x => x is IBattleChara chara ? chara.CurrentHp : 0)
+                    .ThenBy(x => GetTargetCurrentHP(x))
                     .ThenBy(x => GetTargetHPPercent(x)).FirstOrDefault();
             }
 
@@ -801,7 +859,7 @@ namespace WrathCombo.AutoRotation
                 return DPSTargeting.BaseSelection
                     .OrderByDescending(x => DPSTargeting.IsCombatPriority(x))
                     .ThenByDescending(x => x.TargetObject?.GameObjectId != Player.Object?.GameObjectId)
-                    .ThenByDescending(x => x is IBattleChara chara ? chara.CurrentHp : 0)
+                    .ThenByDescending(x => GetTargetCurrentHP(x))
                     .ThenBy(x => GetTargetHPPercent(x)).FirstOrDefault();
             }
 
@@ -810,7 +868,7 @@ namespace WrathCombo.AutoRotation
                 var t = DPSTargeting.BaseSelection
                     .OrderByDescending(x => DPSTargeting.IsCombatPriority(x))
                     .ThenByDescending(x => x.TargetObject?.GameObjectId != Player.Object?.GameObjectId)
-                    .ThenBy(x => x is IBattleChara chara ? chara.MaxHp : 0)
+                    .ThenBy(x => GetTargetMaxHP(x))
                     .ThenBy(x => GetTargetHPPercent(x)).FirstOrDefault();
 
                 return t;
@@ -821,7 +879,7 @@ namespace WrathCombo.AutoRotation
                 return DPSTargeting.BaseSelection
                     .OrderByDescending(x => DPSTargeting.IsCombatPriority(x))
                     .ThenByDescending(x => x.TargetObject?.GameObjectId != Player.Object?.GameObjectId)
-                    .ThenByDescending(x => x is IBattleChara chara ? chara.MaxHp : 0)
+                    .ThenByDescending(x => GetTargetMaxHP(x))
                     .ThenBy(x => GetTargetHPPercent(x)).FirstOrDefault();
             }
         }

@@ -76,7 +76,7 @@ namespace WrathCombo.Data
                     foreach (var eff in target.effects)
                     {
 #if DEBUG
-                        Svc.Log.Verbose($"{eff.Type}, {eff.Value} 0:{eff.Param0}, 1:{eff.Param1}, 2:{eff.Param2}, 3:{eff.Param3}, 4:{eff.Param4} | ({header->ActionId.ActionName()}) -> {Svc.Objects.FirstOrDefault(x => x.GameObjectId == target.id)?.Name}, {eff.AtSource}/{eff.FromTarget}");
+                        Svc.Log.Verbose($"{eff.Type}, Val:{eff.Value} 0:{eff.Param0}, 1:{eff.Param1}, 2:{eff.Param2}, 3:{eff.Param3}, 4:{eff.Param4} | ({header->ActionId.ActionName()}) -> {Svc.Objects.FirstOrDefault(x => x.GameObjectId == target.id)?.Name}, {eff.AtSource}/{eff.FromTarget}");
 #endif
                         if (eff.Type is ActionEffectType.Heal or ActionEffectType.Damage)
                         {
@@ -106,11 +106,19 @@ namespace WrathCombo.Data
                                 member.BuffsGainedAt[eff.Value] = Environment.TickCount64;
                             }
                         }
+                        if (eff.Type is ActionEffectType.ApplyStatusEffectTarget)
+                        {
+                            if (ICDTracker.Trackers.TryGetFirst(x => x.StatusID == eff.Value && x.GameObjectId == (eff.AtSource ? casterEntityId : target.id), out var icd))
+                            {
+                                icd.ICDClearedTime = DateTime.Now + TimeSpan.FromSeconds(60);
+                                icd.TimesApplied += 1;
+                            }
+                            else
+                                ICDTracker.Trackers.Add(new(eff.Value, (eff.AtSource ? casterEntityId : target.id), TimeSpan.FromSeconds(60)));
+                        }
 
                     }
                 }
-
-
 
                 if ((byte)header->ActionType is 13 or 2) return;
                 if (header->ActionId != 7 &&
@@ -204,6 +212,12 @@ namespace WrathCombo.Data
             if (!P.ActionRetargeting.TryGetTargetFor(actionId, out var target, out replacedWith) ||
                 target is null)
                 return false;
+
+            if (actionId == OccultCrescent.Revive)
+            {
+                target = SimpleTarget.Stack.AllyToRaise;
+                if (target is null) return false;
+            }
 
             targetObjectId = target.GameObjectId;
             return true;

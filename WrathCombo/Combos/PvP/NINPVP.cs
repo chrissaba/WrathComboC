@@ -99,7 +99,6 @@ namespace WrathCombo.Combos.PvP
                         UserConfig.DrawSliderInt(1, 100, NINPvP_Meisui_ST, descriptionST);
                         break;
 
-
                     case CustomComboPreset.NINPvP_AoE_Meisui:
                         string descriptionAoE = "Set the HP percentage to be at or under for the feature to kick in.\n100% is considered to start at 8,000 less than your max HP to prevent wastage.";
 
@@ -151,7 +150,7 @@ namespace WrathCombo.Combos.PvP
 
                         // Seiton Tenchu priority for targets below 50% HP
                         if (IsEnabled(CustomComboPreset.NINPvP_ST_SeitonTenchu) && GetTargetHPPercent() < (Config.NINPVP_SeitonTenchu) &&
-                            (IsLB1Ready || HasStatusEffect(Buffs.SeitonUnsealed)) && EnemyHealthCurrentHp() < 100000 && EnemyHealthCurrentHp() > 1)  // Limit Break or Unsealed buff
+                            (IsLB1Ready || HasStatusEffect(Buffs.SeitonUnsealed)) && GetTargetCurrentHP() < 100000 && GetTargetCurrentHP() > 1)  // Limit Break or Unsealed buff
                             return OriginalHook(SeitonTenchu);
 
                         //Smite
@@ -204,7 +203,6 @@ namespace WrathCombo.Combos.PvP
                             }
                             else return actionID;
                         }
-
 
                         // Fuma Shuriken
                         if (IsEnabled(CustomComboPreset.NINPvP_ST_FumaShuriken) && fumaCD.RemainingCharges > 0 && !HasStatusEffect(Buffs.FleetingRaijuReady))
@@ -272,7 +270,6 @@ namespace WrathCombo.Combos.PvP
                                     return OriginalHook(Meisui);
                                 if (!gokaLocked)
                                     return OriginalHook(GokaMekkyaku);
-
 
                             }
                             else return actionID;  // if automatic is not enabled and in mudra mode, ensures fuma shuriken is the option so mudras can be properly chosen

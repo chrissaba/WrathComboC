@@ -23,7 +23,6 @@ namespace WrathCombo.Combos.PvP
             PrimalScream = 29083,
             PrimalWrath = 41433;
 
-
         internal class Buffs
         {
             internal const ushort
@@ -41,7 +40,6 @@ namespace WrathCombo.Combos.PvP
             public static UserInt
                 WARPVP_BlotaTiming = new("WARPVP_BlotaTiming"),
                 WARPvP_RampartThreshold = new("WARPvP_RampartThreshold");
-
 
             internal static void Draw(CustomComboPreset preset)
             {

@@ -1,17 +1,17 @@
 #region
 
-using System;
-using System.Linq;
-using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
 using ECommons.GameFunctions;
 using ECommons.GameHelpers;
 using ECommons.Logging;
+using System;
+using System.Linq;
 using WrathCombo.Attributes;
 using WrathCombo.Combos.PvE;
 using WrathCombo.Core;
 using WrathCombo.CustomComboNS.Functions;
+using WrathCombo.Data;
 using WrathCombo.Extensions;
 using WrathCombo.Services;
 using EZ = ECommons.Throttlers.EzThrottler;
@@ -222,7 +222,7 @@ internal static class SimpleTarget
 
             return null;
 
-            IGameObject? CustomLogic (IGameObject? target)
+            IGameObject? CustomLogic(IGameObject? target)
             {
                 if (target is null) return null;
                 if (logicForEachEntryInStack is null) return target;
@@ -231,7 +231,7 @@ internal static class SimpleTarget
             }
         }
 
-        private static IGameObject? GetSimpleTargetValueFromName (string name)
+        private static IGameObject? GetSimpleTargetValueFromName(string name)
         {
             try
             {
@@ -343,6 +343,24 @@ internal static class SimpleTarget
             .OrderBy(x => x.CurrentHp / x.MaxHp * 100)
             .FirstOrDefault();
 
+    public static IGameObject? InterruptableEnemy =>
+        Svc.Objects
+            .OfType<IBattleChara>()
+            .Where(x => x.IsHostile() && x.IsTargetable &&
+                        x.IsWithinRange(3) && x.IsCastInterruptible)
+            .OrderByDescending(x => Svc.Targets.Target?.GameObjectId == x.GameObjectId)
+            .FirstOrDefault();
+
+    public static IGameObject? StunnableEnemy(int restunCheck = 3) =>
+        Svc.Objects
+            .OfType<IBattleChara>()
+            .Where(x => x.IsHostile() && x.IsTargetable &&
+                        !x.IsBoss() && x.IsWithinRange(3) && 
+                        !CustomComboFunctions.HasStatusEffect(All.Debuffs.Stun, x) && 
+                           (ICDTracker.StatusIsExpired(All.Debuffs.Stun, x.GameObjectId) || ICDTracker.Trackers.FirstOrDefault(y => y.StatusID == All.Debuffs.Stun && x.GameObjectId == y.GameObjectId)?.TimesApplied < restunCheck))
+            .OrderByDescending(x => Svc.Targets.Target?.GameObjectId == x.GameObjectId)
+            .FirstOrDefault();
+
     #endregion
 
     #region Previous Targets
@@ -386,8 +404,8 @@ internal static class SimpleTarget
         CustomComboFunctions
             .GetPartyMembers()
             .Select(x => x.BattleChara)
-            .Where(x => x?.IsDead() == false)
-            .OrderBy(x => x?.CurrentHp)
+            .Where(x => x is not null && x.IsDead() == false)
+            .OrderBy(x => x.CurrentHp)
             .FirstOrDefault();
 
     public static IGameObject? LowestHPAllyIfMissingHP =>
@@ -397,8 +415,8 @@ internal static class SimpleTarget
         CustomComboFunctions
             .GetPartyMembers()
             .Select(x => x.BattleChara)
-            .Where(x => x?.IsDead() == false)
-            .OrderBy(x => x?.CurrentHp / x?.MaxHp * 100)
+            .Where(x => x is not null && x.IsDead() == false)
+            .OrderBy(x => x.CurrentHp / x.MaxHp * 100)
             .FirstOrDefault();
 
     public static IGameObject? LowestHPPAllyIfMissingHP =>
@@ -633,7 +651,7 @@ internal static class SimpleTarget
         {
             var raisers = CustomComboFunctions
                 .GetPartyMembers()
-                .Select(x => new { x.BattleChara, x.RealJob})
+                .Select(x => new { x.BattleChara, x.RealJob })
                 .Where(x => x.BattleChara.IsNotThePlayer() &&
                             x?.RealJob?.RowId is SMN.JobID or RDM.JobID)
                 .ToArray();
